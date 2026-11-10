@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+/* Tema visual inicial hardcodeado.
+   Estos tokens generan utilidades de Tailwind: bg-bg, bg-surface, text-text-muted, etc. */
+@theme {
+  --color-bg: #0f1115;
+  --color-surface: #181b22;
+  --color-surface-hover: #21252e;
+  --color-border: #2a2f3a;
+  --color-text: #e6e8ee;
+  --color-text-muted: #8b90a0;
+  --color-accent: #7c5cff;
+  --color-accent-foreground: #ffffff;
+  --color-accent-hover: #6b4ce6;
+  --color-success: #3ecf8e;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Transición suave al cambiar de tema. Las utilidades transition-* de
+   Tailwind tienen mayor especificidad y siguen mandando donde se aplican. */
+*,
+::before,
+::after {
+  transition-property: background-color, border-color, color;
+  transition-duration: 0.4s;
+  transition-timing-function: ease;
+}

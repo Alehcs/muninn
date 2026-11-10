@@ -1,0 +1,15 @@
+node_modules
+dist
+dist-ssr
+.DS_Store
+*.local
+
+# Tauri
+src-tauri/target
+src-tauri/gen/schemas
+
+# Copias de la base de datos y builds antiguos: datos personales, no se versionan
+recovery/
+
+# Ajustes locales de Claude Code
+.claude/settings.local.json
