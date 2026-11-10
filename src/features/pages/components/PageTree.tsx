@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronRight, FilePlus2, FileText, FolderInput, Pencil, Pin, PinOff, Plus, Trash2 } from "lucide-react";
+import { ChevronRight, FilePlus2, FileText, FolderInput, Pencil, Pin, PinOff, Plus, Table2, Trash2 } from "lucide-react";
 import { useNavigation } from "@/app/NavigationContext";
 import IconButton from "@/components/IconButton";
 import RowMenu from "@/components/RowMenu";
@@ -73,6 +73,15 @@ function TreeRow({ node, depth, expanded, toggle, renamingId, setRenamingId, act
   const open = expanded.has(page.id);
   const active = activeId === page.id;
   const hasChildren = children.length > 0;
+  const isCollection = page.kind === "collection";
+  const addChild = () => {
+    if (isCollection) {
+      void commands.createRow(page);
+      return;
+    }
+    toggle(page.id, true);
+    void commands.createChild(page);
+  };
 
   return (
     <li>
@@ -116,6 +125,8 @@ function TreeRow({ node, depth, expanded, toggle, renamingId, setRenamingId, act
               <span aria-hidden="true" className="w-4 shrink-0 text-center text-[13px] leading-none">
                 {page.icon}
               </span>
+            ) : isCollection ? (
+              <Table2 size={14} strokeWidth={1.5} aria-hidden="true" className="shrink-0" />
             ) : (
               <FileText size={14} strokeWidth={1.5} aria-hidden="true" className="shrink-0" />
             )}
@@ -142,13 +153,22 @@ function TreeRow({ node, depth, expanded, toggle, renamingId, setRenamingId, act
                   onSelect: () => void commands.togglePinned(page),
                 },
                 {
-                  label: "Añadir subpágina",
+                  label: isCollection ? "Añadir elemento" : "Añadir subpágina",
                   icon: FilePlus2,
-                  onSelect: () => {
-                    toggle(page.id, true);
-                    void commands.createChild(page);
-                  },
+                  onSelect: addChild,
                 },
+                ...(isCollection
+                  ? []
+                  : [
+                      {
+                        label: "Nueva colección",
+                        icon: Table2,
+                        onSelect: () => {
+                          toggle(page.id, true);
+                          commands.createCollection(page.id);
+                        },
+                      },
+                    ]),
                 { label: "Mover a…", icon: FolderInput, onSelect: () => commands.move(page) },
                 {
                   label: "Mover a la papelera",
@@ -160,12 +180,13 @@ function TreeRow({ node, depth, expanded, toggle, renamingId, setRenamingId, act
             />
             <IconButton
               icon={Plus}
-              label={`Añadir subpágina a ${pageTitle(page)}`}
+              label={
+                isCollection
+                  ? `Añadir elemento a ${pageTitle(page)}`
+                  : `Añadir subpágina a ${pageTitle(page)}`
+              }
               className="h-6 w-6"
-              onClick={() => {
-                toggle(page.id, true);
-                void commands.createChild(page);
-              }}
+              onClick={addChild}
             />
           </div>
         )}

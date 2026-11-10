@@ -13,9 +13,25 @@ export function comparePages(a: Page, b: Page): number {
   return a.id < b.id ? -1 : 1;
 }
 
+/** Las filas de una colección no se listan en el árbol (pueden ser cientos). */
+export function collectionRowsOf(pages: readonly Page[], collectionId: string): Page[] {
+  return pages.filter((page) => page.parentId === collectionId && page.deletedAt === null);
+}
+
+/** La colección a la que pertenece una fila activa, o undefined. */
+export function getCollectionOf(
+  pages: readonly Page[],
+  page: Pick<Page, "parentId">,
+): Page | undefined {
+  if (page.parentId === null) return undefined;
+  const parent = pages.find((candidate) => candidate.id === page.parentId);
+  return parent && parent.kind === "collection" && parent.deletedAt === null ? parent : undefined;
+}
+
 /**
  * Árbol de las páginas activas. Una página cuya madre no está entre las
- * activas (borrada o inexistente) cuelga de la raíz.
+ * activas (borrada o inexistente) cuelga de la raíz. Las filas de una
+ * colección activa no entran en el árbol.
  */
 export function buildTree(pages: readonly Page[]): PageNode[] {
   const active = pages.filter((page) => page.deletedAt === null);
@@ -27,6 +43,7 @@ export function buildTree(pages: readonly Page[]): PageNode[] {
   for (const page of active) {
     const node = nodes.get(page.id)!;
     const parent = page.parentId === null ? undefined : nodes.get(page.parentId);
+    if (parent?.page.kind === "collection") continue;
     (parent ? parent.children : roots).push(node);
   }
 

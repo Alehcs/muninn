@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
-import { FolderInput, FilePlus2, Pin, PinOff, Trash2 } from "lucide-react";
+import { ChevronRight, FolderInput, FilePlus2, Pin, PinOff, Table2, Trash2 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import RowMenu from "@/components/RowMenu";
 import { notify } from "@/lib/notify";
@@ -11,12 +11,14 @@ import LazyMarkdownEditor, {
 import { usePages } from "../hooks/usePages";
 import { usePageCommands } from "../hooks/usePageCommands";
 import { Autosaver, type SaveStatus } from "../utils/autosave";
-import { getAncestors } from "../utils/pageTree";
+import { getAncestors, getCollectionOf } from "../utils/pageTree";
 import { plainTextToMarkdown } from "../utils/plainTextToMarkdown";
 import { pageCategory, pageTitle, type Page } from "../types";
 import CategoryChip from "./CategoryChip";
 import PageBreadcrumbs from "./PageBreadcrumbs";
 import PageIconPicker from "./PageIconPicker";
+import CollectionTable from "./collection/CollectionTable";
+import RowProperties from "./collection/RowProperties";
 
 /** Estado combinado del guardado de cuerpo y título, para el indicador. */
 function combine(a: SaveStatus, b: SaveStatus): SaveStatus {
@@ -60,6 +62,12 @@ export default function PageDocument({ page }: { page: Page }) {
   );
   const [title, setTitle] = useState(page.title);
   const titleValue = useRef(page.title);
+  const isCollection = page.kind === "collection";
+  const rowOf = isCollection ? undefined : getCollectionOf(store.pages, page);
+  // Descripción de una colección: plegada si está vacía; el editor, una vez abierto, se conserva.
+  const [descOpen, setDescOpen] = useState(page.content.trim() !== "");
+  const [descMounted, setDescMounted] = useState(descOpen);
+  const [descFocus, setDescFocus] = useState(false);
   const [bodyStatus, setBodyStatus] = useState<SaveStatus>("idle");
   const [titleStatus, setTitleStatus] = useState<SaveStatus>("idle");
 
@@ -171,11 +179,41 @@ export default function PageDocument({ page }: { page: Page }) {
                   icon: page.pinned ? PinOff : Pin,
                   onSelect: () => void commands.togglePinned(page),
                 },
-                {
-                  label: "Añadir subpágina",
-                  icon: FilePlus2,
-                  onSelect: () => void commands.createChild(page),
-                },
+                isCollection
+                  ? {
+                      label: "Añadir elemento",
+                      icon: FilePlus2,
+                      onSelect: () => void commands.createRow(page),
+                    }
+                  : {
+                      label: "Añadir subpágina",
+                      icon: FilePlus2,
+                      onSelect: () => void commands.createChild(page),
+                    },
+                ...(isCollection
+                  ? []
+                  : [
+                      {
+                        label: "Nueva colección",
+                        icon: Table2,
+                        onSelect: () => commands.createCollection(page.id),
+                      },
+                    ]),
+                ...(!isCollection &&
+                !rowOf &&
+                !store.pages.some((p) => p.parentId === page.id && p.deletedAt === null)
+                  ? [
+                      {
+                        label: "Convertir en colección",
+                        icon: Table2,
+                        onSelect: async () => {
+                          await bodySaver.flush();
+                          await titleSaver.flush(titleValue.current);
+                          await commands.convertToCollection(page);
+                        },
+                      },
+                    ]
+                  : []),
                 {
                   label: "Mover a…",
                   icon: FolderInput,
@@ -198,7 +236,9 @@ export default function PageDocument({ page }: { page: Page }) {
         }
       />
 
-      <article className="mx-auto w-full max-w-[720px] px-8 pb-24 pt-10">
+      <article
+        className={`mx-auto w-full px-8 pb-24 pt-10 ${isCollection ? "max-w-6xl" : "max-w-[720px]"}`}
+      >
         <div className="group/title">
           <PageIconPicker
             icon={page.icon}
@@ -223,23 +263,56 @@ export default function PageDocument({ page }: { page: Page }) {
         </div>
 
         <div className="mb-6 mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-          <CategoryChip
-            value={pageCategory(page)}
-            onChange={(category) => void store.saveCategory(page.id, category)}
-          />
+          {!isCollection && !rowOf && (
+            <CategoryChip
+              value={pageCategory(page)}
+              onChange={(category) => void store.saveCategory(page.id, category)}
+            />
+          )}
           {edited && (
             <span className="text-xs text-text-muted">Editada {edited}</span>
           )}
         </div>
 
-        <LazyMarkdownEditor
-          ref={editorRef}
-          initialMarkdown={initialMarkdown}
-          autoFocus={page.title !== "" || page.content !== ""}
-          onReady={handleReady}
-          onChange={() => bodySaver.schedule()}
-          onFinalMarkdown={(markdown) => void bodySaver.flush(markdown)}
-        />
+        {rowOf && <RowProperties row={page} collection={rowOf} />}
+
+        {isCollection && (
+          <button
+            type="button"
+            aria-expanded={descOpen}
+            onClick={() => {
+              setDescOpen((current) => !current);
+              setDescMounted(true);
+              setDescFocus(true);
+            }}
+            className="mb-1 inline-flex items-center gap-1 rounded text-sm text-text-muted hover:text-text"
+          >
+            <ChevronRight
+              size={14}
+              strokeWidth={2}
+              aria-hidden="true"
+              className={descOpen ? "rotate-90 transition-transform" : "transition-transform"}
+            />
+            Descripción
+          </button>
+        )}
+
+        {(!isCollection || descMounted) && (
+          <div hidden={isCollection && !descOpen}>
+            <LazyMarkdownEditor
+              ref={editorRef}
+              initialMarkdown={initialMarkdown}
+              autoFocus={
+                isCollection ? descFocus : page.title !== "" || page.content !== ""
+              }
+              onReady={handleReady}
+              onChange={() => bodySaver.schedule()}
+              onFinalMarkdown={(markdown) => void bodySaver.flush(markdown)}
+            />
+          </div>
+        )}
+
+        {isCollection && <CollectionTable collection={page} />}
 
         <PageTasks pageId={page.id} />
       </article>

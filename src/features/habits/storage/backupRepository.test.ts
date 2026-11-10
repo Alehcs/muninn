@@ -4,6 +4,19 @@ import { runMigrations } from "@/lib/db/migrations";
 import type { BackupFile } from "@/features/backup/backupTypes";
 import { ALL_TABLES } from "@/features/backup/backupTypes";
 import { createTestDatabase, type TestDatabase } from "@/test/testDatabase";
+import {
+  createCollection,
+  createRow,
+  getPage,
+  saveCollectionView,
+  saveRowValue,
+} from "@/features/pages/storage/pageRepository";
+import {
+  COLLECTION_TEMPLATES,
+  readColumns,
+  readValues,
+  readView,
+} from "@/features/pages/utils/collection";
 import { readBackupData, replaceBackupData } from "./backupRepository";
 
 const T = "2026-01-01T00:00:00.000Z";
@@ -90,6 +103,36 @@ describe("backup: ida y vuelta", () => {
     const second = await readBackupData();
     expect(withoutSeedFlag(second)).toEqual(withoutSeedFlag(first));
     expect(second.app_metadata.some((row) => row.key === "roadmap_seeded")).toBe(true);
+  });
+
+  it("las colecciones y los valores de sus filas hacen la ida y vuelta", async () => {
+    await seed(test);
+    const collection = await createCollection({ template: COLLECTION_TEMPLATES[1] });
+    const columns = readColumns(collection.properties);
+    const row = await createRow(collection.id, "Dune");
+    await saveRowValue(row.id, columns[0].id, "Herbert");
+    await saveRowValue(row.id, columns[2].id, 5);
+    await saveCollectionView(collection.id, { sort: { columnId: columns[0].id, dir: "asc" } });
+
+    const first = await readBackupData();
+    const stored = first.pages.find((page) => page.id === collection.id)!;
+    expect(stored.kind).toBe("collection");
+
+    // Se pasa por JSON, como el archivo real.
+    const file = JSON.parse(
+      JSON.stringify({ metadata: { backupVersion: 4, exportedAt: T, app: "Aurhabits" }, ...first }),
+    ) as BackupFile;
+    for (const table of ALL_TABLES) {
+      await test.db.execute(`DELETE FROM ${table}`);
+    }
+    await replaceBackupData(file);
+
+    const second = await readBackupData();
+    expect(second.pages).toEqual(first.pages);
+    const back = (await getPage(row.id))!;
+    expect(readValues(back.properties)).toEqual({ [columns[0].id]: "Herbert", [columns[2].id]: 5 });
+    expect(back.parentId).toBe(collection.id);
+    expect(readView((await getPage(collection.id))!.properties).sort?.dir).toBe("asc");
   });
 
   it("v4: las columnas nuevas de tareas hacen la ida y vuelta", async () => {

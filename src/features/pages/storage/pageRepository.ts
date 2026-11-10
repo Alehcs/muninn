@@ -2,6 +2,31 @@ import { createId } from "@/lib/ids";
 import { runBatch, type BatchStatement } from "@/lib/db/batch";
 import { getDatabase } from "@/lib/db/database";
 import type { ContentFormat, Page, PageKind } from "../types";
+import {
+  addColumn,
+  addOption,
+  columnsFromTemplate,
+  mergeProperties,
+  parseProperties,
+  planTypeChange,
+  readColumns,
+  readValues,
+  readView,
+  removeColumn,
+  removeOption,
+  renameColumn,
+  renameOption,
+  withColumns,
+  withRowValue,
+  withView,
+  withoutRowValue,
+  type CellValue,
+  type CollectionTemplate,
+  type Column,
+  type ColumnType,
+  type Properties,
+  type ViewSpec,
+} from "../utils/collection";
 
 interface PageRow {
   id: string;
@@ -21,17 +46,6 @@ interface PageRow {
 
 const COLUMNS = `id, parent_id, title, icon, content, content_format, kind,
   properties, pinned, sort_order, deleted_at, created_at, updated_at`;
-
-function parseProperties(raw: string): Record<string, unknown> {
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : {};
-  } catch {
-    return {};
-  }
-}
 
 function toPage(row: PageRow): Page {
   return {
@@ -73,6 +87,9 @@ export interface NewPageInput {
   parentId?: string | null;
   title?: string;
   content?: string;
+  kind?: PageKind;
+  properties?: Properties;
+  icon?: string;
 }
 
 /** Crea una página al final de sus hermanas. Las páginas nuevas son Markdown. */
@@ -82,27 +99,35 @@ export async function createPage(input: NewPageInput = {}): Promise<Page> {
   const parentId = input.parentId ?? null;
   const title = input.title ?? "";
   const content = input.content ?? "";
+  const kind = input.kind ?? "page";
+  const properties = input.properties ?? {};
+  const icon = input.icon ?? null;
 
   await runBatch([
     {
       sql: `INSERT INTO pages
               (id, parent_id, title, icon, content, content_format, kind,
                properties, pinned, sort_order, deleted_at, created_at, updated_at)
-            VALUES ($1, $2, $3, NULL, $4, 'markdown', 'page', '{}', 0,
+            VALUES ($1, $2, $3, $4, $5, 'markdown', $6, $7, 0,
                     COALESCE((SELECT MAX(sort_order) + 1 FROM pages WHERE parent_id IS $2), 0),
-                    NULL, $5, $5)`,
-      params: [id, parentId, title, content, now],
+                    NULL, $8, $8)`,
+      // Los parámetros aparecen por primera vez en orden ($1…$8): Tauri los enlaza por posición.
+      params: [id, parentId, title, icon, content, kind, JSON.stringify(properties), now],
     },
   ]);
 
+  // Se vuelve a leer para devolver el `sort_order` que asignó la base.
+  const stored = await getPage(id);
+  if (stored) return stored;
   return {
     id,
     parentId,
     title,
+    icon: icon ?? undefined,
     content,
     contentFormat: "markdown",
-    kind: "page",
-    properties: {},
+    kind,
+    properties,
     pinned: false,
     sortOrder: 0,
     deletedAt: null,
@@ -310,4 +335,286 @@ export async function deletePagePermanently(id: string): Promise<void> {
       params: [id],
     },
   ]);
+}
+
+/* ------------------------------------------------------------------ */
+/* Colecciones                                                         */
+/* ------------------------------------------------------------------ */
+
+/** Crea una colección (con las columnas de la plantilla, si hay) al final de sus hermanas. */
+export async function createCollection(
+  input: { parentId?: string | null; template?: CollectionTemplate } = {},
+): Promise<Page> {
+  const template = input.template;
+  return createPage({
+    parentId: input.parentId ?? null,
+    title: template?.title ?? "",
+    icon: template?.icon,
+    kind: "collection",
+    properties: { columns: template ? columnsFromTemplate(template) : [] },
+  });
+}
+
+async function readRawProperties(id: string): Promise<Properties | null> {
+  const db = await getDatabase();
+  const rows = await db.select<{ properties: string }[]>(
+    `SELECT properties FROM pages WHERE id = $1`,
+    [id],
+  );
+  return rows[0] ? parseProperties(rows[0].properties) : null;
+}
+
+/**
+ * Convierte una página normal sin subpáginas en colección. Sus `properties`
+ * (p. ej. `categoria`) se conservan; solo se añade `columns`. Devuelve false si
+ * no procede (no existe, ya es colección o tiene subpáginas).
+ */
+export async function convertToCollection(id: string): Promise<boolean> {
+  const db = await getDatabase();
+  const rows = await db.select<{ kind: string; properties: string; children: number }[]>(
+    `SELECT kind, properties,
+            (SELECT COUNT(*) FROM pages AS c WHERE c.parent_id = pages.id AND c.deleted_at IS NULL) AS children
+       FROM pages WHERE id = $1 AND deleted_at IS NULL`,
+    [id],
+  );
+  const target = rows[0];
+  if (!target || target.kind !== "page" || Number(target.children) > 0) return false;
+
+  const properties = mergeProperties(parseProperties(target.properties), {
+    columns: readColumns(parseProperties(target.properties)),
+  });
+  await runBatch([
+    {
+      sql: `UPDATE pages SET kind = 'collection', properties = $1, updated_at = $2 WHERE id = $3`,
+      params: [JSON.stringify(properties), new Date().toISOString(), id],
+    },
+  ]);
+  return true;
+}
+
+interface RowProps {
+  id: string;
+  properties: Properties;
+}
+
+async function listRowProperties(collectionId: string): Promise<RowProps[]> {
+  const db = await getDatabase();
+  const rows = await db.select<{ id: string; properties: string }[]>(
+    `SELECT id, properties FROM pages WHERE parent_id = $1`,
+    [collectionId],
+  );
+  return rows.map((row) => ({ id: row.id, properties: parseProperties(row.properties) }));
+}
+
+function updateProps(id: string, properties: Properties, touch: boolean, now: string) {
+  return {
+    sql: touch
+      ? `UPDATE pages SET properties = $1, updated_at = $2 WHERE id = $3`
+      : `UPDATE pages SET properties = $1 WHERE id = $2`,
+    params: touch ? [JSON.stringify(properties), now, id] : [JSON.stringify(properties), id],
+  };
+}
+
+/**
+ * Cambia las columnas de una colección y, de forma atómica, reescribe las
+ * filas que lo necesiten. `rewrite` devuelve las nuevas propiedades de una fila
+ * o `null` si no cambia.
+ */
+async function changeColumns(
+  collectionId: string,
+  change: (properties: Properties, columns: Column[]) => Properties,
+  rewrite?: (row: RowProps) => Properties | null,
+): Promise<void> {
+  const properties = await readRawProperties(collectionId);
+  if (properties === null) throw new Error("La colección no existe.");
+  const now = new Date().toISOString();
+  const statements: BatchStatement[] = [
+    updateProps(collectionId, change(properties, readColumns(properties)), true, now),
+  ];
+  if (rewrite) {
+    for (const row of await listRowProperties(collectionId)) {
+      const next = rewrite(row);
+      if (next !== null) statements.push(updateProps(row.id, next, false, now));
+    }
+  }
+  await runBatch(statements);
+}
+
+/** Si el orden o el filtro activos usan lo que se borra, se quitan. */
+function cleanView(properties: Properties, drop: { columnId: string; optionId?: string }): Properties {
+  const view = readView(properties);
+  const next: ViewSpec = { ...view };
+  if (view.sort?.columnId === drop.columnId && drop.optionId === undefined) delete next.sort;
+  if (view.filter?.columnId === drop.columnId) {
+    if (drop.optionId === undefined || view.filter.value === drop.optionId) delete next.filter;
+  }
+  return withView(properties, next);
+}
+
+export async function addCollectionColumn(
+  collectionId: string,
+  input: { name: string; type: ColumnType },
+): Promise<void> {
+  await changeColumns(collectionId, (properties, columns) =>
+    withColumns(properties, addColumn(columns, input)),
+  );
+}
+
+export async function renameCollectionColumn(
+  collectionId: string,
+  columnId: string,
+  name: string,
+): Promise<void> {
+  await changeColumns(collectionId, (properties, columns) =>
+    withColumns(properties, renameColumn(columns, columnId, name)),
+  );
+}
+
+/** Elimina la columna y sus valores en todas las filas. */
+export async function deleteCollectionColumn(
+  collectionId: string,
+  columnId: string,
+): Promise<void> {
+  await changeColumns(
+    collectionId,
+    (properties, columns) => cleanView(withColumns(properties, removeColumn(columns, columnId)), { columnId }),
+    (row) => (columnId in readValues(row.properties) ? withoutRowValue(row.properties, columnId) : null),
+  );
+}
+
+/** Cambia el tipo y convierte los valores; devuelve cuántos se perdieron. */
+export async function changeCollectionColumnType(
+  collectionId: string,
+  columnId: string,
+  to: ColumnType,
+): Promise<number> {
+  const properties = await readRawProperties(collectionId);
+  if (properties === null) throw new Error("La colección no existe.");
+  const column = readColumns(properties).find((candidate) => candidate.id === columnId);
+  if (!column || column.type === to) return 0;
+
+  const rows = await listRowProperties(collectionId);
+  const plan = planTypeChange(
+    column,
+    to,
+    rows.map((row) => ({ id: row.id, values: readValues(row.properties) })),
+  );
+  await changeColumns(
+    collectionId,
+    (current, columns) =>
+      cleanView(
+        withColumns(
+          current,
+          columns.map((candidate) => (candidate.id === columnId ? plan.column : candidate)),
+        ),
+        { columnId },
+      ),
+    (row) =>
+      plan.values.has(row.id) ? withRowValue(row.properties, columnId, plan.values.get(row.id)) : null,
+  );
+  return plan.lost;
+}
+
+export async function addColumnOption(
+  collectionId: string,
+  columnId: string,
+  label: string,
+): Promise<void> {
+  await changeColumns(collectionId, (properties, columns) =>
+    withColumns(
+      properties,
+      columns.map((column) => (column.id === columnId ? addOption(column, label).column : column)),
+    ),
+  );
+}
+
+export async function renameColumnOption(
+  collectionId: string,
+  columnId: string,
+  optionId: string,
+  label: string,
+): Promise<void> {
+  await changeColumns(collectionId, (properties, columns) =>
+    withColumns(
+      properties,
+      columns.map((column) =>
+        column.id === columnId ? renameOption(column, optionId, label) : column,
+      ),
+    ),
+  );
+}
+
+/** Elimina la opción; las filas que la tenían se quedan sin valor. */
+export async function deleteColumnOption(
+  collectionId: string,
+  columnId: string,
+  optionId: string,
+): Promise<void> {
+  await changeColumns(
+    collectionId,
+    (properties, columns) =>
+      cleanView(
+        withColumns(
+          properties,
+          columns.map((column) => (column.id === columnId ? removeOption(column, optionId) : column)),
+        ),
+        { columnId, optionId },
+      ),
+    (row) =>
+      readValues(row.properties)[columnId] === optionId
+        ? withoutRowValue(row.properties, columnId)
+        : null,
+  );
+}
+
+/** Guarda el orden/filtro de la vista de la colección. */
+export async function saveCollectionView(collectionId: string, view: ViewSpec): Promise<void> {
+  const properties = await readRawProperties(collectionId);
+  if (properties === null) return;
+  const db = await getDatabase();
+  await db.execute(`UPDATE pages SET properties = $1 WHERE id = $2`, [
+    JSON.stringify(withView(properties, view)),
+    collectionId,
+  ]);
+}
+
+/** Escribe un valor de celda de una fila (vacío = quita el valor), fusionando. */
+export async function saveRowValue(
+  rowId: string,
+  columnId: string,
+  value: CellValue | null,
+): Promise<Properties> {
+  const properties = await readRawProperties(rowId);
+  if (properties === null) throw new Error("La fila no existe.");
+  const next = withRowValue(properties, columnId, value);
+  const db = await getDatabase();
+  await db.execute(`UPDATE pages SET properties = $1, updated_at = $2 WHERE id = $3`, [
+    JSON.stringify(next),
+    new Date().toISOString(),
+    rowId,
+  ]);
+  return next;
+}
+
+/** Crea una fila (subpágina de la colección) al final. */
+export async function createRow(
+  collectionId: string,
+  title = "",
+  values: Record<string, CellValue> = {},
+): Promise<Page> {
+  return createPage({
+    parentId: collectionId,
+    title,
+    properties: Object.keys(values).length > 0 ? { values } : {},
+  });
+}
+
+/** Fija el orden manual de las filas: `orderedIds[i]` pasa a `sort_order = i`. */
+export async function reorderPages(orderedIds: readonly string[]): Promise<void> {
+  await runBatch(
+    orderedIds.map((id, index) => ({
+      sql: `UPDATE pages SET sort_order = $1 WHERE id = $2`,
+      params: [index, id],
+    })),
+  );
 }

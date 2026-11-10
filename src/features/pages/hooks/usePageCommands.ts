@@ -24,6 +24,22 @@ export function usePageCommands() {
       createRoot: () => create(null),
       createChild: (parent: Page) => create(parent.id),
 
+      /** Pregunta vacía/plantilla y abre la colección creada. */
+      createCollection: (parentId: string | null) =>
+        store.requestNewCollection(parentId, open),
+
+      /** Añade un elemento a una colección y lo abre. */
+      createRow: async (collection: Page) => {
+        const id = await store.createRow(collection.id, "");
+        if (id !== null) open(id);
+      },
+
+      convertToCollection: async (page: Page) => {
+        if (await store.convertToCollection(page.id)) {
+          notify.success(`«${pageTitle(page)}» es ahora una colección.`);
+        }
+      },
+
       togglePinned: (page: Page) => store.setPinned(page.id, !page.pinned),
 
       move: (page: Page) => store.requestMove(page.id),

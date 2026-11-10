@@ -12,6 +12,15 @@ import { notify } from "@/lib/notify";
 import * as pageRepo from "../storage/pageRepository";
 import type { Page } from "../types";
 import MovePageDialog from "../components/MovePageDialog";
+import NewCollectionDialog from "../components/NewCollectionDialog";
+import {
+  withRowValue,
+  withView,
+  type CellValue,
+  type CollectionTemplate,
+  type ColumnType,
+  type ViewSpec,
+} from "../utils/collection";
 import { buildTree, getTrashRoots, type PageNode } from "../utils/pageTree";
 
 export type PagesStatus = "loading" | "ready" | "error";
@@ -35,6 +44,37 @@ export interface PagesStore {
   saveCategory: (id: string, category: string) => Promise<void>;
   setPinned: (id: string, pinned: boolean) => Promise<void>;
   movePage: (id: string, parentId: string | null) => Promise<void>;
+  /** Abre el diálogo "Nueva colección" (vacía o con plantilla) bajo `parentId`. */
+  requestNewCollection: (
+    parentId: string | null,
+    onCreated?: (id: string) => void,
+  ) => void;
+  createCollection: (
+    parentId: string | null,
+    template?: CollectionTemplate,
+  ) => Promise<string | null>;
+  /** Convierte una página sin subpáginas en colección. */
+  convertToCollection: (id: string) => Promise<boolean>;
+  /** Crea una fila al final de la colección y devuelve su id. */
+  createRow: (collectionId: string, title: string) => Promise<string | null>;
+  /** Valor de una celda: se refleja al instante y se guarda a continuación. */
+  saveRowValue: (rowId: string, columnId: string, value: CellValue | null) => Promise<void>;
+  saveView: (collectionId: string, view: ViewSpec) => Promise<void>;
+  addColumn: (collectionId: string, input: { name: string; type: ColumnType }) => Promise<void>;
+  renameColumn: (collectionId: string, columnId: string, name: string) => Promise<void>;
+  deleteColumn: (collectionId: string, columnId: string) => Promise<void>;
+  /** Devuelve cuántos valores se perdieron al convertir. */
+  changeColumnType: (collectionId: string, columnId: string, to: ColumnType) => Promise<number>;
+  addOption: (collectionId: string, columnId: string, label: string) => Promise<void>;
+  renameOption: (
+    collectionId: string,
+    columnId: string,
+    optionId: string,
+    label: string,
+  ) => Promise<void>;
+  deleteOption: (collectionId: string, columnId: string, optionId: string) => Promise<void>;
+  /** Fija el orden manual de las filas (ids en el orden deseado). */
+  reorderRows: (orderedIds: string[]) => Promise<void>;
   /** Abre el selector "Mover a…" para una página. */
   requestMove: (id: string) => void;
   trashPage: (id: string) => Promise<void>;
@@ -59,6 +99,10 @@ export function PagesProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<PagesStatus>("loading");
   const [pages, setPages] = useState<Page[]>([]);
   const [moving, setMoving] = useState<string | null>(null);
+  const [newCollection, setNewCollection] = useState<{
+    parentId: string | null;
+    onCreated?: (id: string) => void;
+  } | null>(null);
   const loadedRef = useRef(false);
 
   const reload = useCallback(async () => {
@@ -102,13 +146,131 @@ export function PagesProvider({ children }: { children: ReactNode }) {
     return {
       reload,
       requestMove: setMoving,
+      requestNewCollection: (parentId, onCreated) => setNewCollection({ parentId, onCreated }),
+
+      createCollection: async (parentId, template) => {
+        try {
+          const page = await pageRepo.createCollection({ parentId, template });
+          setPages((current) => [...current, page]);
+          return page.id;
+        } catch (error) {
+          console.error("Collection create failed", error);
+          notify.error("No se pudo crear la colección.");
+          return null;
+        }
+      },
+
+      convertToCollection: async (id) => {
+        try {
+          const converted = await pageRepo.convertToCollection(id);
+          if (converted) await reload();
+          return converted;
+        } catch (error) {
+          console.error("Collection convert failed", error);
+          notify.error("No se pudo convertir la página en colección.");
+          return false;
+        }
+      },
+
+      createRow: async (collectionId, title) => {
+        try {
+          const row = await pageRepo.createRow(collectionId, title);
+          setPages((current) => [...current, row]);
+          return row.id;
+        } catch (error) {
+          console.error("Row create failed", error);
+          notify.error("No se pudo crear el elemento.");
+          return null;
+        }
+      },
+
+      saveRowValue: (rowId, columnId, value) => {
+        // Optimista: la celda cambia ya; solo se toca esa fila.
+        const now = new Date().toISOString();
+        setPages((current) =>
+          current.map((page) =>
+            page.id === rowId
+              ? { ...page, properties: withRowValue(page.properties, columnId, value), updatedAt: now }
+              : page,
+          ),
+        );
+        return attempt("No se pudo guardar el valor.", async () => {
+          await pageRepo.saveRowValue(rowId, columnId, value);
+        });
+      },
+
+      saveView: (collectionId, view) => {
+        setPages((current) =>
+          current.map((page) =>
+            page.id === collectionId
+              ? { ...page, properties: withView(page.properties, view) }
+              : page,
+          ),
+        );
+        return attempt("No se pudo guardar la vista.", () =>
+          pageRepo.saveCollectionView(collectionId, view),
+        );
+      },
+
+      addColumn: (collectionId, input) =>
+        attempt("No se pudo añadir la columna.", async () => {
+          await pageRepo.addCollectionColumn(collectionId, input);
+          await reload();
+        }),
+
+      renameColumn: (collectionId, columnId, name) =>
+        attempt("No se pudo renombrar la columna.", async () => {
+          await pageRepo.renameCollectionColumn(collectionId, columnId, name);
+          await reload();
+        }),
+
+      deleteColumn: (collectionId, columnId) =>
+        attempt("No se pudo eliminar la columna.", async () => {
+          await pageRepo.deleteCollectionColumn(collectionId, columnId);
+          await reload();
+        }),
+
+      changeColumnType: async (collectionId, columnId, to) => {
+        let lost = 0;
+        await attempt("No se pudo cambiar el tipo de la columna.", async () => {
+          lost = await pageRepo.changeCollectionColumnType(collectionId, columnId, to);
+          await reload();
+        });
+        return lost;
+      },
+
+      addOption: (collectionId, columnId, label) =>
+        attempt("No se pudo añadir la opción.", async () => {
+          await pageRepo.addColumnOption(collectionId, columnId, label);
+          await reload();
+        }),
+
+      renameOption: (collectionId, columnId, optionId, label) =>
+        attempt("No se pudo renombrar la opción.", async () => {
+          await pageRepo.renameColumnOption(collectionId, columnId, optionId, label);
+          await reload();
+        }),
+
+      deleteOption: (collectionId, columnId, optionId) =>
+        attempt("No se pudo eliminar la opción.", async () => {
+          await pageRepo.deleteColumnOption(collectionId, columnId, optionId);
+          await reload();
+        }),
+
+      reorderRows: (orderedIds) => {
+        const position = new Map(orderedIds.map((id, index) => [id, index]));
+        setPages((current) =>
+          current.map((page) =>
+            position.has(page.id) ? { ...page, sortOrder: position.get(page.id)! } : page,
+          ),
+        );
+        return attempt("No se pudo guardar el orden.", () => pageRepo.reorderPages(orderedIds));
+      },
 
       createPage: async (parentId = null) => {
         try {
           const page = await pageRepo.createPage({ parentId });
           setPages((current) => [...current, page]);
-          // El orden entre hermanas lo decide la base (sort_order): se recarga.
-          void reload();
           return page.id;
         } catch (error) {
           console.error("Page create failed", error);
@@ -193,6 +355,17 @@ export function PagesProvider({ children }: { children: ReactNode }) {
   return (
     <PagesContext.Provider value={store}>
       {children}
+      {newCollection && (
+        <NewCollectionDialog
+          onCancel={() => setNewCollection(null)}
+          onCreate={async (template) => {
+            const { parentId, onCreated } = newCollection;
+            setNewCollection(null);
+            const id = await store.createCollection(parentId, template);
+            if (id !== null) onCreated?.(id);
+          }}
+        />
+      )}
       {movingPage && (
         <MovePageDialog
           page={movingPage}

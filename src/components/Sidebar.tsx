@@ -1,11 +1,13 @@
 import {
   CalendarCheck,
+  FilePlus2,
   ListChecks,
   Repeat,
   Plus,
   Settings,
   SquareCheckBig,
   StickyNote,
+  Table2,
   Timer,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -13,7 +15,7 @@ import ActiveTimerIndicator from "@/components/ActiveTimerIndicator";
 import { useNavigation } from "@/app/NavigationContext";
 import { NAV_GROUPS, SETTINGS_ITEM } from "@/app/navigation";
 import type { NavItem, View } from "@/app/navigation";
-import IconButton from "@/components/IconButton";
+import RowMenu from "@/components/RowMenu";
 import PageTree from "@/features/pages/components/PageTree";
 import { usePageCommands } from "@/features/pages/hooks/usePageCommands";
 import { cn } from "@/utils/cn";
@@ -79,12 +81,17 @@ function PagesSection({ active }: { active: boolean }) {
     <>
       <div className="group/pages relative">
         <NavButton item={item} active={active} onNavigate={(view) => navigate(view)} />
-        <IconButton
-          icon={Plus}
-          label="Nueva página"
-          onClick={() => void commands.createRoot()}
-          className="absolute right-1 top-0.5 opacity-0 focus-visible:opacity-100 group-hover/pages:opacity-100 [@media(hover:none)]:opacity-100"
-        />
+        <div className="absolute right-1 top-0.5 opacity-0 focus-within:opacity-100 group-hover/pages:opacity-100 [@media(hover:none)]:opacity-100">
+          <RowMenu
+            label="Nueva página o colección"
+            icon={Plus}
+            floating
+            items={[
+              { label: "Nueva página", icon: FilePlus2, onSelect: () => void commands.createRoot() },
+              { label: "Nueva colección", icon: Table2, onSelect: () => commands.createCollection(null) },
+            ]}
+          />
+        </div>
       </div>
       <PageTree />
     </>

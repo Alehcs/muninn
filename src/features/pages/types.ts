@@ -1,9 +1,9 @@
 /** Formato en que está guardado `content`. */
 export type ContentFormat = "markdown" | "plain";
 
-/** Tipo de página. Por ahora solo existe "page"; "kind" y "properties" quedan
-    preparados para colecciones en una fase posterior. */
-export type PageKind = "page";
+/** Tipo de página: una página normal o una colección (tabla cuyas filas son
+    subpáginas). Ver `utils/collection.ts` para el contenido de `properties`. */
+export type PageKind = "page" | "collection";
 
 export interface Page {
   id: string;

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { FilePlus2, FileText, FolderInput, Pin, PinOff, Search, Trash2, Undo2 } from "lucide-react";
+import { FilePlus2, FileText, FolderInput, Pin, PinOff, Search, Table2, Trash2, Undo2 } from "lucide-react";
 import Button from "@/components/Button";
 import CompactRow from "@/components/CompactRow";
 import IconButton from "@/components/IconButton";
@@ -8,7 +8,12 @@ import RowMenu from "@/components/RowMenu";
 import { inputCls } from "@/components/formStyles";
 import { usePages } from "../hooks/usePages";
 import { usePageCommands } from "../hooks/usePageCommands";
-import { countWithDescendants, getAncestors, matchesQuery } from "../utils/pageTree";
+import {
+  countWithDescendants,
+  getAncestors,
+  getCollectionOf,
+  matchesQuery,
+} from "../utils/pageTree";
 import { pageCategory, pageTitle, type Page as PageRecord } from "../types";
 
 function formatDate(value: string): string {
@@ -36,6 +41,8 @@ function Icon({ page }: { page: PageRecord }) {
     <span aria-hidden="true" className="w-5 shrink-0 text-center text-sm">
       {page.icon}
     </span>
+  ) : page.kind === "collection" ? (
+    <Table2 size={15} strokeWidth={1.5} aria-hidden="true" className="w-5 shrink-0 text-text-muted" />
   ) : (
     <FileText
       size={15}
@@ -53,7 +60,13 @@ function PageList({ query }: { query: string }) {
   const rows = useMemo(
     () =>
       store.pages
-        .filter((page) => page.deletedAt === null && matchesQuery(page, query))
+        .filter(
+          (page) =>
+            page.deletedAt === null &&
+            matchesQuery(page, query) &&
+            // Las filas de una colección solo salen al buscar (pueden ser cientos).
+            (query.trim() !== "" || getCollectionOf(store.pages, page) === undefined),
+        )
         .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0)),
     [store.pages, query],
   );
@@ -72,9 +85,12 @@ function PageList({ query }: { query: string }) {
     <ul className="flex flex-col">
       {rows.map((page) => {
         const category = pageCategory(page);
-        const path = getAncestors(store.pages, page.id)
-          .map(pageTitle)
-          .join(" › ");
+        const collection = getCollectionOf(store.pages, page);
+        const path = collection
+          ? ""
+          : getAncestors(store.pages, page.id)
+              .map(pageTitle)
+              .join(" › ");
         const match = snippet(page, query);
         return (
           <li key={page.id}>
@@ -96,11 +112,26 @@ function PageList({ query }: { query: string }) {
                       icon: page.pinned ? PinOff : Pin,
                       onSelect: () => void commands.togglePinned(page),
                     },
-                    {
-                      label: "Añadir subpágina",
-                      icon: FilePlus2,
-                      onSelect: () => void commands.createChild(page),
-                    },
+                    page.kind === "collection"
+                      ? {
+                          label: "Añadir elemento",
+                          icon: FilePlus2,
+                          onSelect: () => void commands.createRow(page),
+                        }
+                      : {
+                          label: "Añadir subpágina",
+                          icon: FilePlus2,
+                          onSelect: () => void commands.createChild(page),
+                        },
+                    ...(page.kind === "collection"
+                      ? []
+                      : [
+                          {
+                            label: "Nueva colección",
+                            icon: Table2,
+                            onSelect: () => commands.createCollection(page.id),
+                          },
+                        ]),
                     {
                       label: "Mover a…",
                       icon: FolderInput,
@@ -123,6 +154,12 @@ function PageList({ query }: { query: string }) {
               {category && (
                 <span className="shrink-0 rounded-full bg-surface-hover px-2 py-0.5 text-xs text-text-muted">
                   {category}
+                </span>
+              )}
+              {collection && (
+                <span className="inline-flex min-w-0 shrink items-center gap-1 truncate rounded-full bg-surface-hover px-2 py-0.5 text-xs text-text-muted">
+                  <Table2 size={11} strokeWidth={1.75} aria-hidden="true" className="shrink-0" />
+                  <span className="truncate">{pageTitle(collection)}</span>
                 </span>
               )}
               {path && (
@@ -184,7 +221,7 @@ function TrashList() {
                 <span className="min-w-0 truncate text-sm">{pageTitle(page)}</span>
                 {included > 1 && (
                   <span className="shrink-0 text-xs text-text-muted">
-                    +{included - 1} subpáginas
+                    +{included - 1} {page.kind === "collection" ? "elementos" : "subpáginas"}
                   </span>
                 )}
               </CompactRow>
@@ -203,7 +240,9 @@ export default function PagesIndexView() {
   const [query, setQuery] = useState("");
   const [showTrash, setShowTrash] = useState(false);
 
-  const activeCount = store.pages.filter((page) => page.deletedAt === null).length;
+  const activeCount = store.pages.filter(
+    (page) => page.deletedAt === null && getCollectionOf(store.pages, page) === undefined,
+  ).length;
 
   return (
     <Page
@@ -212,10 +251,16 @@ export default function PagesIndexView() {
       width="3xl"
       primaryAction={{ label: "Nueva página", onClick: () => void commands.createRoot() }}
       actions={
+        <>
+        <Button variant="quiet" onClick={() => commands.createCollection(null)}>
+          <Table2 size={15} strokeWidth={1.75} aria-hidden="true" />
+          Nueva colección
+        </Button>
         <Button variant="quiet" onClick={() => setShowTrash((current) => !current)}>
           <Trash2 size={15} strokeWidth={1.75} aria-hidden="true" />
           {showTrash ? "Volver a las páginas" : `Papelera${store.trash.length ? ` (${store.trash.length})` : ""}`}
         </Button>
+        </>
       }
     >
       {store.status === "loading" ? (

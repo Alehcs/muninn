@@ -104,6 +104,17 @@ describe("validateBackupFile", () => {
       validateBackupFile({ ...v3, pages: [{ ...page, properties: "no json" }] }),
     ).toThrow(/JSON/);
     expect(() => validateBackupFile({ ...v3, pages: [page, page] })).toThrow(/duplicado/);
+
+    // Colecciones y filas son páginas con kind y properties propios.
+    const collection = {
+      ...page,
+      id: "c1",
+      kind: "collection",
+      properties: '{"columns":[{"id":"a","name":"Autor","type":"text"}]}',
+    };
+    const row = { ...page, id: "r1", parent_id: "c1", properties: '{"values":{"a":"Borges"}}' };
+    const withCollection = validateBackupFile({ ...v3, pages: [collection, row] });
+    expect("pages" in withCollection && withCollection.pages).toHaveLength(2);
   });
 
   describe("tareas (columnas de la v4)", () => {
