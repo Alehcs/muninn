@@ -1,7 +1,7 @@
 import FormCard, { Field } from "@/components/FormCard";
 import { inputCls } from "@/components/formStyles";
 import { optional } from "@/lib/text";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type {
   RoadmapItem,
   RoadmapItemInput,
@@ -34,19 +34,7 @@ export default function RoadmapItemForm({
   const [description, setDescription] = useState(initial?.description ?? "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [url, setUrl] = useState(initial?.url ?? "");
-  const [orderIndex, setOrderIndex] = useState(
-    initial ? String(initial.orderIndex) : "",
-  );
-
-  const parsedOrderIndex = useMemo(() => {
-    if (orderIndex.trim() === "") return undefined;
-    return Number(orderIndex);
-  }, [orderIndex]);
-
-  const validOrder =
-    parsedOrderIndex === undefined ||
-    (Number.isInteger(parsedOrderIndex) && parsedOrderIndex > 0);
-  const valid = sectionId.length > 0 && title.trim().length > 0 && validOrder;
+  const valid = sectionId.length > 0 && title.trim().length > 0;
 
   const handleSubmit = () => {
     if (!valid) return;
@@ -56,7 +44,6 @@ export default function RoadmapItemForm({
       title: title.trim(),
       description: optional(description),
       type: optional(type),
-      orderIndex: parsedOrderIndex,
       notes: optional(notes),
       url: optional(url),
     });
@@ -69,35 +56,21 @@ export default function RoadmapItemForm({
       valid={valid}
       onSubmit={handleSubmit}
       onCancel={onCancel}
-      note="Deja el orden vacío para enviarlo al final de la sección."
+      note="El orden se cambia arrastrando el item en la lista. Si lo mueves a otra sección, queda al final de ella."
     >
-      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_140px]">
-        <Field label="Sección">
-          <select
-            className={inputCls}
-            value={sectionId}
-            onChange={(event) => setSectionId(event.target.value)}
-          >
-            {sectionOptions.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-
-        <Field label="Orden">
-          <input
-            className={inputCls}
-            inputMode="numeric"
-            min="1"
-            type="number"
-            value={orderIndex}
-            onChange={(event) => setOrderIndex(event.target.value)}
-            placeholder="Auto"
-          />
-        </Field>
-      </div>
+      <Field label="Sección">
+        <select
+          className={inputCls}
+          value={sectionId}
+          onChange={(event) => setSectionId(event.target.value)}
+        >
+          {sectionOptions.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.name}
+            </option>
+          ))}
+        </select>
+      </Field>
 
       <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
         <Field label="Título">

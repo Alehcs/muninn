@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import DailyProgressSummary from "@/features/habits/components/DailyProgressSummary";
-import HabitHistoryCard from "@/features/habits/components/HabitHistoryCard";
+import HabitHistoryRow from "@/features/habits/components/HabitHistoryRow";
 import { useHabitHistory } from "@/features/habits/hooks/useHabitHistory";
 import type { HabitsStore } from "@/features/habits/hooks/useHabits";
 import { getLocalDate } from "@/features/habits/utils/date";
@@ -11,7 +11,7 @@ interface HistoryViewProps {
 }
 
 const inputCls =
-  "rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text focus:border-accent";
+  "rounded-lg border border-border bg-bg px-2 py-1 text-sm text-text focus:border-accent";
 
 export default function HistoryView({ store }: HistoryViewProps) {
   const [selectedDate, setSelectedDate] = useState(() => getLocalDate());
@@ -33,7 +33,8 @@ export default function HistoryView({ store }: HistoryViewProps) {
 
   return (
     <section>
-      <div className="flex justify-end">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold">Progreso registrado</h3>
         <label className="flex items-center gap-2 text-xs font-medium text-text-muted">
           Fecha
           <input
@@ -45,34 +46,29 @@ export default function HistoryView({ store }: HistoryViewProps) {
         </label>
       </div>
 
-      <div className="mt-6">
-        <DailyProgressSummary
-          percent={daily.percent}
-          completed={daily.completed}
-          total={daily.total}
-        />
-      </div>
+      <DailyProgressSummary
+        title="Progreso del día"
+        percent={daily.percent}
+        completed={daily.completed}
+        total={daily.total}
+      />
 
-      <h3 className="mt-8 mb-3 text-lg font-semibold">Progreso registrado</h3>
       {history.status === "loading" ? (
-        <p className="rounded-xl border border-border bg-surface px-6 py-8 text-center text-sm text-text-muted">
+        <p className="mt-3 rounded-xl border border-border bg-surface px-6 py-8 text-center text-sm text-text-muted">
           Cargando historial…
         </p>
       ) : history.status === "error" ? (
-        <p className="rounded-xl border border-border bg-surface px-6 py-8 text-center text-sm text-text-muted">
+        <p className="mt-3 rounded-xl border border-border bg-surface px-6 py-8 text-center text-sm text-text-muted">
           No se pudo cargar el historial de esa fecha.
         </p>
       ) : progressItems.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-border bg-surface px-6 py-12 text-center text-sm text-text-muted">
+        <p className="mt-3 rounded-xl border border-dashed border-border bg-surface px-6 py-12 text-center text-sm text-text-muted">
           No hay hábitos creados todavía.
         </p>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="mt-3 divide-y divide-border rounded-xl border border-border bg-surface p-1">
           {progressItems.map((progress) => (
-            <HabitHistoryCard
-              key={progress.habit.id}
-              progress={progress}
-            />
+            <HabitHistoryRow key={progress.habit.id} progress={progress} />
           ))}
         </div>
       )}

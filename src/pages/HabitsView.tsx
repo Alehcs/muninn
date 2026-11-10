@@ -1,5 +1,5 @@
 import HabitForm from "@/features/habits/components/HabitForm";
-import HabitManagementCard from "@/features/habits/components/HabitManagementCard";
+import HabitManagementRow from "@/features/habits/components/HabitManagementRow";
 import type { HabitsStore } from "@/features/habits/hooks/useHabits";
 import type { Habit } from "@/features/habits/types";
 import { confirm } from "@/lib/confirm";
@@ -62,9 +62,9 @@ export default function HabitsView({
         </div>
       )}
 
-      <div className="mt-4 flex flex-col gap-3">
+      <div className="mt-3 divide-y divide-border rounded-xl border border-border bg-surface p-1">
         {habits.map((habit) => (
-          <HabitManagementCard
+          <HabitManagementRow
             key={habit.id}
             habit={habit}
             onEdit={() => onFormChange({ open: true, habit })}

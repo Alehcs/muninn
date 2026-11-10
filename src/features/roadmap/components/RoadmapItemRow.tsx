@@ -1,6 +1,11 @@
-import Button from "@/components/Button";
-import { cn } from "@/utils/cn";
+import { useState } from "react";
+import type { ReactNode } from "react";
+import { ExternalLink, Pencil, Trash2 } from "lucide-react";
+import CompactRow from "@/components/CompactRow";
+import IconButton from "@/components/IconButton";
 import { openExternalUrl } from "@/lib/platform/links";
+import { cn } from "@/utils/cn";
+import { toOpenableUrl } from "../utils/roadmapUrl";
 import type { RoadmapItem } from "../types";
 
 interface RoadmapItemRowProps {
@@ -8,84 +13,113 @@ interface RoadmapItemRowProps {
   onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  /** Asa de arrastre que entrega `SortableList`. */
+  handle?: ReactNode;
 }
 
+/**
+ * Fila compacta de un item de lista: casilla, título, chip de tipo y enlace.
+ * Descripción, notas y enlace completo aparecen al desplegarla; Editar y
+ * Eliminar son iconos que se muestran al pasar el cursor o enfocar la fila.
+ */
 export default function RoadmapItemRow({
   item,
   onToggle,
   onEdit,
   onDelete,
+  handle,
 }: RoadmapItemRowProps) {
-  const handleOpenUrl = () => {
-    if (!item.url) return;
+  const [expanded, setExpanded] = useState(false);
 
-    const normalized =
-      /^https?:\/\//i.test(item.url) || /^mailto:/i.test(item.url)
-        ? item.url
-        : `https://${item.url}`;
-    void openExternalUrl(normalized).catch(() => undefined);
+  const openUrl = () => {
+    if (!item.url) return;
+    void openExternalUrl(toOpenableUrl(item.url)).catch(() => undefined);
   };
 
+  const hasDetails = Boolean(item.description || item.notes || item.url);
+
   return (
-    <div className="rounded-lg border border-border bg-bg/35 p-4">
-      <div className="flex gap-3">
+    <CompactRow
+      handle={handle}
+      expanded={expanded}
+      onToggleExpanded={() => setExpanded((current) => !current)}
+      expandLabel={`${expanded ? "Ocultar" : "Mostrar"} detalles de ${item.title}`}
+      leading={
         <input
           type="checkbox"
           checked={item.completed}
           onChange={onToggle}
-          className="mt-1 h-4 w-4 accent-accent"
+          className="h-4 w-4 shrink-0 accent-accent"
           aria-label={`Marcar ${item.title}`}
         />
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p
-              className={cn(
-                "break-words font-medium",
-                item.completed && "text-text-muted line-through",
-              )}
-            >
-              {item.title}
-            </p>
-            {item.type && (
-              <span className="rounded-full bg-surface-hover px-2 py-0.5 text-xs text-text-muted">
-                {item.type}
-              </span>
-            )}
-          </div>
-
+      }
+      trailing={
+        item.url ? (
+          <IconButton
+            icon={ExternalLink}
+            label={`Abrir enlace de ${item.title}`}
+            onClick={openUrl}
+            className="text-accent hover:text-accent-hover"
+          />
+        ) : undefined
+      }
+      actions={
+        <>
+          <IconButton
+            icon={Pencil}
+            label={`Editar ${item.title}`}
+            onClick={onEdit}
+          />
+          <IconButton
+            icon={Trash2}
+            label={`Eliminar ${item.title}`}
+            tone="danger"
+            onClick={onDelete}
+          />
+        </>
+      }
+      details={
+        <div className="flex flex-col gap-2">
           {item.description && (
-            <p className="mt-1 break-words text-sm text-text-muted">
-              {item.description}
-            </p>
+            <p className="break-words text-text-muted">{item.description}</p>
           )}
-
           {item.notes && (
-            <p className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-surface px-3 py-2 text-sm text-text-muted">
+            <p className="whitespace-pre-wrap break-words rounded-lg bg-bg px-3 py-2 text-text-muted">
               {item.notes}
             </p>
           )}
-
           {item.url && (
             <button
-              className="mt-2 inline-block break-all text-left text-sm font-medium text-accent hover:text-accent-hover"
               type="button"
-              onClick={handleOpenUrl}
+              onClick={openUrl}
+              className="w-fit max-w-full break-all text-left font-medium text-accent hover:text-accent-hover"
             >
-              Abrir link
+              {item.url}
             </button>
           )}
+          {!hasDetails && (
+            <p className="text-text-muted">
+              Sin descripción, notas ni enlace. Usa Editar para añadirlos.
+            </p>
+          )}
+          <p className="text-xs text-text-muted">Sección: {item.section}</p>
         </div>
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-2 pl-7">
-        <Button variant="ghost" onClick={onEdit} className="px-2 py-1 text-xs">
-          Editar
-        </Button>
-        <Button variant="ghost" onClick={onDelete} className="px-2 py-1 text-xs">
-          Eliminar
-        </Button>
-      </div>
-    </div>
+      }
+    >
+      <span
+        className={cn(
+          "min-w-0 truncate text-sm",
+          item.completed && "text-text-muted line-through",
+        )}
+        title={item.title}
+      >
+        {item.title}
+      </span>
+      {item.type && (
+        <span className="shrink-0 rounded-full bg-surface-hover px-2 py-0.5 text-xs text-text-muted group-hover:bg-border/60">
+          {item.type}
+        </span>
+      )}
+    </CompactRow>
   );
 }

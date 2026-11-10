@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import type { FormEvent, KeyboardEvent, ReactNode } from "react";
 import Button from "@/components/Button";
 import { labelCls } from "@/components/formStyles";
+import { setFormDirty } from "@/lib/unsavedChanges";
 
 interface FormCardProps {
   title: string;
@@ -18,11 +19,39 @@ interface FormCardProps {
 const FIRST_FIELD =
   "input:not([type=hidden]):not([type=checkbox]):not([disabled]), textarea:not([disabled]), select:not([disabled])";
 
+/** Huella del contenido de los campos, para saber si difiere del inicial. */
+function snapshotForm(form: HTMLFormElement): string {
+  const values: string[] = [];
+  for (const element of Array.from(form.elements)) {
+    if (
+      element instanceof HTMLInputElement ||
+      element instanceof HTMLTextAreaElement ||
+      element instanceof HTMLSelectElement
+    ) {
+      if (element instanceof HTMLInputElement) {
+        if (["button", "submit", "reset", "hidden"].includes(element.type)) {
+          continue;
+        }
+        values.push(
+          element.type === "checkbox" || element.type === "radio"
+            ? String(element.checked)
+            : element.value,
+        );
+      } else {
+        values.push(element.value);
+      }
+    }
+  }
+  return JSON.stringify(values);
+}
+
 /**
  * Formulario estándar de la app, en una tarjeta:
  * - es un `<form>` real (Enter envía desde campos de una línea);
  * - el primer campo recibe el foco al abrirse;
- * - Escape cancela y Cmd/Ctrl+Enter envía también desde un textarea.
+ * - Escape cancela y Cmd/Ctrl+Enter envía también desde un textarea;
+ * - mientras su contenido difiere del inicial se registra como "cambios sin
+ *   guardar" (`@/lib/unsavedChanges`) para avisar antes de navegar fuera.
  */
 export default function FormCard({
   title,
@@ -34,14 +63,30 @@ export default function FormCard({
   children,
 }: FormCardProps) {
   const formRef = useRef<HTMLFormElement>(null);
+  const dirtyId = useRef(Symbol("form"));
+  const initialSnapshot = useRef<string | null>(null);
 
   useEffect(() => {
-    formRef.current?.querySelector<HTMLElement>(FIRST_FIELD)?.focus();
+    const form = formRef.current;
+    const id = dirtyId.current;
+    if (form !== null) {
+      form.querySelector<HTMLElement>(FIRST_FIELD)?.focus();
+      initialSnapshot.current = snapshotForm(form);
+    }
+    return () => setFormDirty(id, false);
   }, []);
+
+  const trackChanges = () => {
+    const form = formRef.current;
+    if (form === null || initialSnapshot.current === null) return;
+    setFormDirty(dirtyId.current, snapshotForm(form) !== initialSnapshot.current);
+  };
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
-    if (valid) onSubmit();
+    if (!valid) return;
+    setFormDirty(dirtyId.current, false);
+    onSubmit();
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLFormElement>) => {
@@ -64,6 +109,8 @@ export default function FormCard({
       ref={formRef}
       onSubmit={handleSubmit}
       onKeyDown={handleKeyDown}
+      onInput={trackChanges}
+      onChange={trackChanges}
       noValidate
       className="rounded-xl border border-border bg-surface p-5"
     >

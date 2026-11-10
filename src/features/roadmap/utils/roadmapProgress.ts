@@ -38,3 +38,11 @@ export function groupRoadmapItems(
     })
     .sort((left, right) => left.section.order - right.section.order);
 }
+
+/** Items que se muestran: todos, o solo los pendientes si se ocultan los completados. */
+export function filterVisibleItems(
+  items: RoadmapItem[],
+  hideCompleted: boolean,
+): RoadmapItem[] {
+  return hideCompleted ? items.filter((item) => !item.completed) : items;
+}

@@ -22,7 +22,7 @@ export default function HabitTimerPanel({
   if (timer === null && message === null) return null;
 
   return (
-    <div className="mt-6 rounded-xl border border-border bg-surface p-5">
+    <div className="mt-3 rounded-xl border border-border bg-surface p-4">
       {timer === null ? (
         <p className="text-sm text-text-muted">{message}</p>
       ) : (

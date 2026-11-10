@@ -7,8 +7,8 @@ import {
 } from "@/features/habits/utils/progress";
 import type { DailyProgress } from "@/features/habits/utils/progress";
 import { getDateRange } from "@/features/stats/utils/dateRange";
-import { getCalendarDayStatus } from "@/features/calendar/utils/dayStatus";
-import type { CalendarDayStatus } from "@/features/calendar/utils/dayStatus";
+import { getHeatLevel } from "@/features/calendar/utils/dayStatus";
+import type { CalendarHeatLevel } from "@/features/calendar/utils/dayStatus";
 import { getMonthRange } from "@/features/calendar/utils/monthGrid";
 
 type CalendarStatus = "loading" | "ready" | "error";
@@ -17,7 +17,7 @@ type ValuesByDate = Record<string, Record<string, number>>;
 
 export interface CalendarDaySummary extends DailyProgress {
   date: string;
-  status: CalendarDayStatus;
+  level: CalendarHeatLevel;
 }
 
 export interface CalendarDayDetails extends DailyProgress {
@@ -95,7 +95,7 @@ export function useCalendarMonth(
       summaries[date] = {
         date,
         ...daily,
-        status: getCalendarDayStatus(daily.percent),
+        level: getHeatLevel(daily.percent),
       };
     }
 

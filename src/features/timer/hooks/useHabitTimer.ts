@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Habit } from "@/features/habits/types";
 
-type TimerStatus = "running" | "paused";
+export type TimerStatus = "running" | "paused";
 
-interface TimerState {
+export interface TimerState {
   habitId: string;
   habitName: string;
   plannedMinutes: number;
@@ -28,7 +28,7 @@ interface UseHabitTimerOptions {
   onComplete: (habitId: string, minutes: number) => void;
 }
 
-function getElapsedMs(timer: TimerState, now: number): number {
+export function getElapsedMs(timer: TimerState, now: number): number {
   if (timer.status === "paused" || timer.startedAt === null) {
     return timer.elapsedBeforePauseMs;
   }
@@ -40,9 +40,28 @@ function toCompletedMinutes(timer: TimerState, elapsedMs: number): number {
   return Math.min(timer.plannedMinutes, Math.floor(elapsedMs / 60_000));
 }
 
+/**
+ * Resultado de finalizar un timer a mano: minutos completos a sumar (0 si no
+ * llegó al primero) y mensaje. Es una función pura: el efecto de sumar los
+ * minutos lo hace quien la llama, nunca dentro de un actualizador de estado.
+ */
+export function resolveManualFinish(
+  timer: TimerState,
+  now: number,
+): { minutes: number; message: string } {
+  const minutes = toCompletedMinutes(timer, getElapsedMs(timer, now));
+  return {
+    minutes,
+    message: `${timer.habitName}: timer finalizado manualmente (+${minutes} min).`,
+  };
+}
+
 export function useHabitTimer({ onComplete }: UseHabitTimerOptions) {
   const onCompleteRef = useRef(onComplete);
   const [timer, setTimer] = useState<TimerState | null>(null);
+  // Copia síncrona del estado para leerlo en acciones sin usar actualizadores.
+  const timerRef = useRef<TimerState | null>(null);
+  timerRef.current = timer;
   const [now, setNow] = useState(() => Date.now());
   const [message, setMessage] = useState<string | null>(null);
 
@@ -140,22 +159,19 @@ export function useHabitTimer({ onComplete }: UseHabitTimerOptions) {
   }, []);
 
   const finishTimer = useCallback(() => {
-    setTimer((current) => {
-      if (current === null) return current;
+    const current = timerRef.current;
+    if (current === null) return;
 
-      const elapsedMs = getElapsedMs(current, Date.now());
-      const completedMinutes = toCompletedMinutes(current, elapsedMs);
-
-      if (completedMinutes > 0) {
-        onCompleteRef.current(current.habitId, completedMinutes);
-      }
-
-      setMessage(
-        `${current.habitName}: timer finalizado manualmente (+${completedMinutes} min).`,
-      );
-
-      return null;
-    });
+    // Primero el efecto (sumar minutos), fuera de cualquier actualizador:
+    // en modo estricto los actualizadores se ejecutan dos veces.
+    const { minutes, message: finishMessage } = resolveManualFinish(
+      current,
+      Date.now(),
+    );
+    timerRef.current = null;
+    if (minutes > 0) onCompleteRef.current(current.habitId, minutes);
+    setMessage(finishMessage);
+    setTimer(null);
   }, []);
 
   const canStartTimer = useCallback(

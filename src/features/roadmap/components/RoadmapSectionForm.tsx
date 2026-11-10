@@ -1,6 +1,6 @@
 import FormCard, { Field } from "@/components/FormCard";
 import { inputCls } from "@/components/formStyles";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { RoadmapSection, RoadmapSectionInput } from "../types";
 
 interface RoadmapSectionFormProps {
@@ -17,24 +17,11 @@ export default function RoadmapSectionForm({
 }: RoadmapSectionFormProps) {
   const isEdit = initial !== undefined;
   const [name, setName] = useState(initial?.name ?? "");
-  const [order, setOrder] = useState(initial ? String(initial.order) : "");
-
-  const parsedOrder = useMemo(() => {
-    if (order.trim() === "") return undefined;
-    return Number(order);
-  }, [order]);
-
-  const validOrder =
-    parsedOrder === undefined ||
-    (Number.isInteger(parsedOrder) && parsedOrder > 0);
-  const valid = name.trim().length > 0 && validOrder;
+  const valid = name.trim().length > 0;
 
   const handleSubmit = () => {
     if (!valid) return;
-    onSubmit({
-      name: name.trim(),
-      order: parsedOrder,
-    });
+    onSubmit({ name: name.trim() });
   };
 
   return (
@@ -44,29 +31,16 @@ export default function RoadmapSectionForm({
       valid={valid}
       onSubmit={handleSubmit}
       onCancel={onCancel}
+      note="El orden de las secciones se cambia arrastrándolas por su asa."
     >
-      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_140px]">
-        <Field label="Nombre">
-          <input
-            className={inputCls}
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="Ej. Systems fundamentals"
-          />
-        </Field>
-
-        <Field label="Orden">
-          <input
-            className={inputCls}
-            inputMode="numeric"
-            min="1"
-            type="number"
-            value={order}
-            onChange={(event) => setOrder(event.target.value)}
-            placeholder="Auto"
-          />
-        </Field>
-      </div>
+      <Field label="Nombre">
+        <input
+          className={inputCls}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="Ej. Systems fundamentals"
+        />
+      </Field>
     </FormCard>
   );
 }

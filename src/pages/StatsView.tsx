@@ -1,4 +1,6 @@
-import HabitStatsCard from "@/features/stats/components/HabitStatsCard";
+import HabitStatsRow, {
+  STATS_COLUMNS,
+} from "@/features/stats/components/HabitStatsRow";
 import StatsSummary from "@/features/stats/components/StatsSummary";
 import { useStats } from "@/features/stats/hooks/useStats";
 import type { HabitsStore } from "@/features/habits/hooks/useHabits";
@@ -12,11 +14,9 @@ export default function StatsView({ store }: StatsViewProps) {
 
   return (
     <section>
-      <div className="mt-6">
-        <StatsSummary summary={stats.summary} />
-      </div>
+      <StatsSummary summary={stats.summary} />
 
-      <h3 className="mt-8 mb-3 text-lg font-semibold">Hábitos activos</h3>
+      <h3 className="mt-5 mb-2 text-sm font-semibold">Hábitos activos</h3>
       {stats.status === "loading" ? (
         <p className="rounded-xl border border-border bg-surface px-6 py-8 text-center text-sm text-text-muted">
           Calculando estadísticas…
@@ -30,10 +30,21 @@ export default function StatsView({ store }: StatsViewProps) {
           No hay hábitos activos para analizar.
         </p>
       ) : (
-        <div className="flex flex-col gap-3">
-          {stats.habitStats.map((habitStats) => (
-            <HabitStatsCard key={habitStats.habit.id} stats={habitStats} />
-          ))}
+        <div className="rounded-xl border border-border bg-surface p-1">
+          <div className="flex items-center gap-2 px-2 pb-1 pt-1.5 text-xs text-text-muted">
+            <span className="flex-1">Hábito</span>
+            <div className={STATS_COLUMNS}>
+              <span>Racha actual</span>
+              <span>Mejor racha</span>
+              <span>7 días</span>
+              <span>30 días</span>
+            </div>
+          </div>
+          <div className="divide-y divide-border border-t border-border">
+            {stats.habitStats.map((habitStats) => (
+              <HabitStatsRow key={habitStats.habit.id} stats={habitStats} />
+            ))}
+          </div>
         </div>
       )}
     </section>

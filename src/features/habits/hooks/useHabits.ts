@@ -32,6 +32,8 @@ export interface HabitsStore {
   // Acciones de progreso diario.
   toggleCheck: (id: string) => void;
   increment: (id: string) => void;
+  /** Resta 1 (nunca baja de 0). */
+  decrement: (id: string) => void;
   addMinutes: (id: string, minutes: number) => void;
   reset: (id: string) => void;
   // CRUD de hábitos.
@@ -134,6 +136,7 @@ export function useHabits(): HabitsStore {
   const toggleCheck = (id: string) =>
     applyValue(id, (value) => (value > 0 ? 0 : 1));
   const increment = (id: string) => applyValue(id, (value) => value + 1);
+  const decrement = (id: string) => applyValue(id, (value) => value - 1);
   const addMinutes = (id: string, minutes: number) =>
     applyValue(id, (value) => value + minutes);
   const reset = (id: string) => applyValue(id, () => 0);
@@ -198,6 +201,7 @@ export function useHabits(): HabitsStore {
     daily,
     toggleCheck,
     increment,
+    decrement,
     addMinutes,
     reset,
     createHabit,

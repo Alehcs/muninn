@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as roadmapRepo from "../storage/roadmapRepository";
 import { getRoadmapProgress, groupRoadmapItems } from "../utils/roadmapProgress";
+import { applyItemOrder, applySectionOrder } from "../utils/roadmapOrder";
 import { notify } from "@/lib/notify";
 import type {
   Roadmap,
@@ -45,6 +46,10 @@ export interface RoadmapChecklistStore {
   updateItem: (id: string, input: RoadmapItemInput) => Promise<void>;
   deleteItem: (id: string) => Promise<void>;
   toggleCompleted: (id: string) => Promise<void>;
+  /** Guarda el nuevo orden (ids completos) de los items de una sección. */
+  reorderItems: (sectionId: string, orderedIds: string[]) => Promise<void>;
+  /** Guarda el nuevo orden (ids completos) de las secciones de la lista. */
+  reorderSections: (orderedIds: string[]) => Promise<void>;
 }
 
 export function useRoadmapChecklist(): RoadmapChecklistStore {
@@ -56,7 +61,13 @@ export function useRoadmapChecklist(): RoadmapChecklistStore {
   const [roadmapSections, setRoadmapSections] = useState<RoadmapSection[]>([]);
   const [items, setItems] = useState<RoadmapItem[]>([]);
   const selectedRoadmapIdRef = useRef<string | null>(null);
+  const roadmapSectionsRef = useRef<RoadmapSection[]>([]);
+  const itemsRef = useRef<RoadmapItem[]>([]);
+  roadmapSectionsRef.current = roadmapSections;
+  itemsRef.current = items;
   const loadedRef = useRef(false);
+  // Las altas se encadenan: así dos "Enter" seguidos no leen el mismo "siguiente orden".
+  const createQueueRef = useRef<Promise<unknown>>(Promise.resolve());
 
   const loadDetails = useCallback(async (roadmapId: string | null) => {
     if (roadmapId === null) {
@@ -224,13 +235,18 @@ export function useRoadmapChecklist(): RoadmapChecklistStore {
   );
 
   const createItem = useCallback(
-    async (input: RoadmapItemInput) => {
-      try {
-        await roadmapRepo.insertRoadmapItem(input);
-        await refreshCurrent();
-      } catch (error) {
-        await handleWriteError(error);
-      }
+    (input: RoadmapItemInput) => {
+      const run = async () => {
+        try {
+          await roadmapRepo.insertRoadmapItem(input);
+          await refreshCurrent();
+        } catch (error) {
+          await handleWriteError(error);
+        }
+      };
+      const next = createQueueRef.current.then(run, run);
+      createQueueRef.current = next;
+      return next;
     },
     [refreshCurrent, handleWriteError],
   );
@@ -274,6 +290,33 @@ export function useRoadmapChecklist(): RoadmapChecklistStore {
     [items, refreshCurrent, handleWriteError],
   );
 
+  const reorderItems = useCallback(
+    async (sectionId: string, orderedIds: string[]) => {
+      // Optimista: la fila queda donde se soltó mientras se guarda.
+      setItems((current) => applyItemOrder(current, sectionId, orderedIds));
+      try {
+        await roadmapRepo.reorderRoadmapItems(orderedIds);
+      } catch (error) {
+        await handleWriteError(error);
+      }
+    },
+    [handleWriteError],
+  );
+
+  const reorderSections = useCallback(
+    async (orderedIds: string[]) => {
+      const next = applySectionOrder(roadmapSectionsRef.current, itemsRef.current, orderedIds);
+      setRoadmapSections(next.sections);
+      setItems(next.items);
+      try {
+        await roadmapRepo.reorderRoadmapSections(orderedIds);
+      } catch (error) {
+        await handleWriteError(error);
+      }
+    },
+    [handleWriteError],
+  );
+
   const sections = useMemo(
     () => groupRoadmapItems(roadmapSections, items),
     [roadmapSections, items],
@@ -306,5 +349,7 @@ export function useRoadmapChecklist(): RoadmapChecklistStore {
     updateItem,
     deleteItem,
     toggleCompleted,
+    reorderItems,
+    reorderSections,
   };
 }

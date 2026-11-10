@@ -1,5 +1,5 @@
 import DailyProgressSummary from "@/features/habits/components/DailyProgressSummary";
-import HabitCard from "@/features/habits/components/HabitCard";
+import HabitRow from "@/features/habits/components/HabitRow";
 import type { HabitsStore } from "@/features/habits/hooks/useHabits";
 import HabitTimerPanel from "@/features/timer/components/HabitTimerPanel";
 import { useHabitTimerContext } from "@/features/timer/HabitTimerContext";
@@ -10,8 +10,15 @@ interface TodayViewProps {
 }
 
 export default function TodayView({ store }: TodayViewProps) {
-  const { todayHabits, daily, toggleCheck, increment, addMinutes, reset } =
-    store;
+  const {
+    todayHabits,
+    daily,
+    toggleCheck,
+    increment,
+    decrement,
+    addMinutes,
+    reset,
+  } = store;
   const timer = useHabitTimerContext();
   const today = new Date().toLocaleDateString("es-ES", {
     weekday: "long",
@@ -40,20 +47,20 @@ export default function TodayView({ store }: TodayViewProps) {
         onFinish={timer.finishTimer}
       />
 
-      <h2 className="mt-8 mb-3 text-lg font-semibold">Tus hábitos de hoy</h2>
       {todayHabits.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-border bg-surface px-6 py-12 text-center text-sm text-text-muted">
+        <p className="mt-3 rounded-xl border border-dashed border-border bg-surface px-6 py-12 text-center text-sm text-text-muted">
           No hay hábitos activos. Crea o activa hábitos desde la sección
           "Hábitos".
         </p>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="mt-3 divide-y divide-border rounded-xl border border-border bg-surface p-1">
           {todayHabits.map((progress) => (
-            <HabitCard
+            <HabitRow
               key={progress.habit.id}
               progress={progress}
               onToggleCheck={() => toggleCheck(progress.habit.id)}
               onIncrement={() => increment(progress.habit.id)}
+              onDecrement={() => decrement(progress.habit.id)}
               onAddMinutes={(minutes) =>
                 addMinutes(progress.habit.id, minutes)
               }

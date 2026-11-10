@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Tabs, { TabPanel } from "@/components/Tabs";
 import type { TabItem } from "@/components/Tabs";
 import { Page } from "@/components/PageHeader";
@@ -7,6 +7,8 @@ import HabitsView from "@/pages/HabitsView";
 import type { HabitFormState } from "@/pages/HabitsView";
 import HistoryView from "@/pages/HistoryView";
 import StatsView from "@/pages/StatsView";
+import { scrollMainToTop } from "@/lib/scroll";
+import { confirmDiscardChanges } from "@/lib/unsavedChanges";
 import type { HabitsStore } from "@/features/habits/hooks/useHabits";
 
 type HabitsTab = "manage" | "calendar" | "history" | "stats";
@@ -35,6 +37,22 @@ interface HabitsHubViewProps {
 export default function HabitsHubView({ store }: HabitsHubViewProps) {
   const [tab, setTab] = useState<HabitsTab>("manage");
   const [form, setForm] = useState<HabitFormState>({ open: false });
+  const firstRender = useRef(true);
+
+  // Al cambiar de pestaña, el contenido vuelve arriba (como al cambiar de vista).
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    scrollMainToTop();
+  }, [tab]);
+
+  const changeTab = async (next: HabitsTab) => {
+    if (next === tab) return;
+    if (!(await confirmDiscardChanges())) return;
+    setTab(next);
+  };
 
   return (
     <Page
@@ -53,7 +71,7 @@ export default function HabitsHubView({ store }: HabitsHubViewProps) {
         <Tabs
           tabs={TABS}
           value={tab}
-          onChange={setTab}
+          onChange={(next) => void changeTab(next)}
           label="Secciones de hábitos"
           idPrefix={ID_PREFIX}
         />

@@ -8,6 +8,10 @@ import {
   defaultRoadmap,
   defaultRoadmapItems,
 } from "../data/defaultRoadmapItems";
+import {
+  buildItemOrderStatements,
+  buildSectionOrderStatements,
+} from "../utils/roadmapOrder";
 import type {
   Roadmap,
   RoadmapInput,
@@ -540,8 +544,17 @@ export async function updateRoadmapItem(
   if (!section) return;
 
   const db = await getDatabase();
+  // Sin orden explícito: si sigue en la misma sección conserva su posición;
+  // si cambia de sección, va al final de la nueva.
+  const current = await db.select<{ section_id: string | null; order_index: number }[]>(
+    `SELECT section_id, order_index FROM roadmap_items WHERE id = $1`,
+    [id],
+  );
   const orderIndex =
-    input.orderIndex ?? (await getNextOrderIndex(input.sectionId));
+    input.orderIndex ??
+    (current[0]?.section_id === input.sectionId
+      ? current[0].order_index
+      : await getNextOrderIndex(input.sectionId));
 
   await db.execute(
     `UPDATE roadmap_items
@@ -593,4 +606,18 @@ export async function setRoadmapItemCompleted(
 export async function deleteRoadmapItem(id: string): Promise<void> {
   const db = await getDatabase();
   await db.execute(`DELETE FROM roadmap_items WHERE id = $1`, [id]);
+}
+
+/** Guarda el orden de los items de una sección (1…n) en una sola transacción. */
+export async function reorderRoadmapItems(orderedIds: string[]): Promise<void> {
+  await runBatch(buildItemOrderStatements(orderedIds, new Date().toISOString()));
+}
+
+/** Guarda el orden de las secciones (1…n) en una sola transacción. */
+export async function reorderRoadmapSections(
+  orderedIds: string[],
+): Promise<void> {
+  await runBatch(
+    buildSectionOrderStatements(orderedIds, new Date().toISOString()),
+  );
 }
