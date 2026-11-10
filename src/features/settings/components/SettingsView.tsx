@@ -1,7 +1,14 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Button from "@/components/Button";
 import type { HabitsStore } from "@/features/habits/hooks/useHabits";
 import { isFullBackup, type BackupFile } from "@/features/backup/backupTypes";
+import { isTauri } from "@/lib/platform";
+import {
+  listSnapshots,
+  revealBackupsDir,
+  type SnapshotInfo,
+} from "@/lib/db/snapshots";
+import { notify } from "@/lib/notify";
 import {
   exportBackup,
   importBackup,
@@ -46,10 +53,121 @@ function formatExportedAt(value: string): string {
   return date.toLocaleString("es-ES", { dateStyle: "long", timeStyle: "short" });
 }
 
+const SNAPSHOTS_SHOWN = 10;
+
+/** Motivo de la copia en español, a partir del nombre técnico. */
+function describeSnapshotReason(reason: string): string {
+  if (reason === "diario") return "Copia diaria";
+  if (reason === "antes-de-importar") return "Antes de importar un backup";
+  const migration = /^pre-migracion-v(\d+)$/.exec(reason);
+  if (migration) {
+    return `Antes de actualizar la base de datos (desde la versión ${migration[1]})`;
+  }
+  return reason;
+}
+
+function formatSnapshotDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("es-ES", { dateStyle: "medium", timeStyle: "short" });
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function AutomaticCopies() {
+  const [snapshots, setSnapshots] = useState<SnapshotInfo[] | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      setSnapshots(await listSnapshots());
+      setFailed(false);
+    } catch (error) {
+      console.error("No se pudieron listar las copias", error);
+      setFailed(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const handleOpen = async () => {
+    try {
+      await revealBackupsDir();
+    } catch (error) {
+      console.error("No se pudo abrir la carpeta de copias", error);
+      notify.error("No se pudo abrir la carpeta de copias.");
+    }
+  };
+
+  return (
+    <div className="mt-4 rounded-xl border border-border bg-surface p-5">
+      <h3 className="font-medium">Copias automáticas</h3>
+      <p className="mt-1 text-sm text-text-muted">
+        Aurhabits guarda por su cuenta copias de tu base de datos (una al día,
+        otra antes de actualizarla y otra antes de importar un backup) para que
+        un error nunca te deje sin datos.
+      </p>
+
+      {failed ? (
+        <p className="mt-4 text-sm text-text-muted">
+          No se pudo leer la lista de copias.
+        </p>
+      ) : !isTauri() ? (
+        <p className="mt-4 text-sm text-text-muted">
+          Las copias solo se crean en la aplicación de escritorio.
+        </p>
+      ) : snapshots === null ? null : snapshots.length === 0 ? (
+        <p className="mt-4 text-sm text-text-muted">Todavía no hay copias.</p>
+      ) : (
+        <ul className="mt-4 divide-y divide-border text-sm">
+          {snapshots.slice(0, SNAPSHOTS_SHOWN).map((snapshot) => (
+            <li
+              key={snapshot.name}
+              className="flex items-baseline justify-between gap-4 py-2"
+            >
+              <span>
+                <span className="text-text">
+                  {formatSnapshotDate(snapshot.createdAt)}
+                </span>
+                <span className="text-text-muted">
+                  {" "}
+                  · {describeSnapshotReason(snapshot.reason)}
+                </span>
+              </span>
+              <span className="shrink-0 text-text-muted">
+                {formatSize(snapshot.sizeBytes)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {isTauri() && (
+        <div className="mt-4">
+          <Button variant="ghost" onClick={handleOpen}>
+            Abrir carpeta
+          </Button>
+        </div>
+      )}
+
+      <p className="mt-4 text-xs text-text-muted">
+        Para restaurar una copia basta con cerrar la app y sustituir el archivo
+        de la base de datos por la copia. Si necesitas ayuda, pídelo.
+      </p>
+    </div>
+  );
+}
+
 export default function SettingsView({ store }: SettingsViewProps) {
   const [notice, setNotice] = useState<Notice>(null);
   const [pendingBackup, setPendingBackup] = useState<BackupFile | null>(null);
   const [busy, setBusy] = useState(false);
+  const [copiesKey, setCopiesKey] = useState(0);
 
   const handleExport = async () => {
     try {
@@ -102,6 +220,7 @@ export default function SettingsView({ store }: SettingsViewProps) {
       await importBackup(pendingBackup);
       await store.reload({ seedDefaults: false, showLoading: false });
       setPendingBackup(null);
+      setCopiesKey((key) => key + 1);
       setNotice({ type: "success", text: "Backup importado correctamente." });
     } catch (error) {
       setNotice({
@@ -144,6 +263,8 @@ export default function SettingsView({ store }: SettingsViewProps) {
           </p>
         )}
       </div>
+
+      <AutomaticCopies key={copiesKey} />
 
       {pendingBackup && (
         <div className="mt-4 rounded-xl border border-border bg-surface p-5">

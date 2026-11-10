@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as roadmapRepo from "../storage/roadmapRepository";
 import { getRoadmapProgress, groupRoadmapItems } from "../utils/roadmapProgress";
+import { notify } from "@/lib/notify";
 import type {
   Roadmap,
   RoadmapInput,
@@ -55,6 +56,7 @@ export function useRoadmapChecklist(): RoadmapChecklistStore {
   const [roadmapSections, setRoadmapSections] = useState<RoadmapSection[]>([]);
   const [items, setItems] = useState<RoadmapItem[]>([]);
   const selectedRoadmapIdRef = useRef<string | null>(null);
+  const loadedRef = useRef(false);
 
   const loadDetails = useCallback(async (roadmapId: string | null) => {
     if (roadmapId === null) {
@@ -89,10 +91,17 @@ export function useRoadmapChecklist(): RoadmapChecklistStore {
         setRoadmaps(storedRoadmaps);
         setSelectedRoadmapId(nextSelectedId);
         await loadDetails(nextSelectedId);
+        loadedRef.current = true;
         setStatus("ready");
       } catch (error) {
         reportRoadmapError(error);
-        setStatus("error");
+        // La pantalla de error completa solo aparece si falla la carga inicial.
+        if (loadedRef.current) {
+          setStatus("ready");
+          notify.error("No se pudieron recargar los datos del roadmap.");
+        } else {
+          setStatus("error");
+        }
       }
     },
     [loadDetails],
@@ -109,6 +118,16 @@ export function useRoadmapChecklist(): RoadmapChecklistStore {
     });
   }, [reload]);
 
+  /** Un fallo al guardar avisa y recarga para mostrar lo que hay realmente. */
+  const handleWriteError = useCallback(
+    async (error: unknown) => {
+      reportRoadmapError(error);
+      notify.error("No se pudo guardar el cambio en el roadmap.");
+      await refreshCurrent();
+    },
+    [refreshCurrent],
+  );
+
   const selectRoadmap = useCallback(
     async (id: string) => {
       try {
@@ -117,7 +136,7 @@ export function useRoadmapChecklist(): RoadmapChecklistStore {
         await loadDetails(id);
       } catch (error) {
         reportRoadmapError(error);
-        setStatus("error");
+        notify.error("No se pudo abrir ese roadmap.");
       }
     },
     [loadDetails],
@@ -130,11 +149,10 @@ export function useRoadmapChecklist(): RoadmapChecklistStore {
         selectedRoadmapIdRef.current = roadmap.id;
         await reload({ selectedRoadmapId: roadmap.id, showLoading: false });
       } catch (error) {
-        reportRoadmapError(error);
-        setStatus("error");
+        await handleWriteError(error);
       }
     },
-    [reload],
+    [reload, handleWriteError],
   );
 
   const updateRoadmap = useCallback(
@@ -143,11 +161,10 @@ export function useRoadmapChecklist(): RoadmapChecklistStore {
         await roadmapRepo.updateRoadmap(id, input);
         await refreshCurrent();
       } catch (error) {
-        reportRoadmapError(error);
-        setStatus("error");
+        await handleWriteError(error);
       }
     },
-    [refreshCurrent],
+    [refreshCurrent, handleWriteError],
   );
 
   const deleteRoadmap = useCallback(
@@ -159,11 +176,10 @@ export function useRoadmapChecklist(): RoadmapChecklistStore {
         }
         await refreshCurrent();
       } catch (error) {
-        reportRoadmapError(error);
-        await refreshCurrent().catch(reportRoadmapError);
+        await handleWriteError(error);
       }
     },
-    [refreshCurrent],
+    [refreshCurrent, handleWriteError],
   );
 
   const createSection = useCallback(
@@ -177,11 +193,10 @@ export function useRoadmapChecklist(): RoadmapChecklistStore {
         );
         await refreshCurrent();
       } catch (error) {
-        reportRoadmapError(error);
-        setStatus("error");
+        await handleWriteError(error);
       }
     },
-    [refreshCurrent],
+    [refreshCurrent, handleWriteError],
   );
 
   const updateSection = useCallback(
@@ -190,11 +205,10 @@ export function useRoadmapChecklist(): RoadmapChecklistStore {
         await roadmapRepo.updateRoadmapSection(id, input);
         await refreshCurrent();
       } catch (error) {
-        reportRoadmapError(error);
-        setStatus("error");
+        await handleWriteError(error);
       }
     },
-    [refreshCurrent],
+    [refreshCurrent, handleWriteError],
   );
 
   const deleteSection = useCallback(
@@ -203,11 +217,10 @@ export function useRoadmapChecklist(): RoadmapChecklistStore {
         await roadmapRepo.deleteRoadmapSection(id);
         await refreshCurrent();
       } catch (error) {
-        reportRoadmapError(error);
-        await refreshCurrent().catch(reportRoadmapError);
+        await handleWriteError(error);
       }
     },
-    [refreshCurrent],
+    [refreshCurrent, handleWriteError],
   );
 
   const createItem = useCallback(
@@ -216,11 +229,10 @@ export function useRoadmapChecklist(): RoadmapChecklistStore {
         await roadmapRepo.insertRoadmapItem(input);
         await refreshCurrent();
       } catch (error) {
-        reportRoadmapError(error);
-        setStatus("error");
+        await handleWriteError(error);
       }
     },
-    [refreshCurrent],
+    [refreshCurrent, handleWriteError],
   );
 
   const updateItem = useCallback(
@@ -229,11 +241,10 @@ export function useRoadmapChecklist(): RoadmapChecklistStore {
         await roadmapRepo.updateRoadmapItem(id, input);
         await refreshCurrent();
       } catch (error) {
-        reportRoadmapError(error);
-        setStatus("error");
+        await handleWriteError(error);
       }
     },
-    [refreshCurrent],
+    [refreshCurrent, handleWriteError],
   );
 
   const deleteItem = useCallback(
@@ -242,11 +253,10 @@ export function useRoadmapChecklist(): RoadmapChecklistStore {
         await roadmapRepo.deleteRoadmapItem(id);
         await refreshCurrent();
       } catch (error) {
-        reportRoadmapError(error);
-        setStatus("error");
+        await handleWriteError(error);
       }
     },
-    [refreshCurrent],
+    [refreshCurrent, handleWriteError],
   );
 
   const toggleCompleted = useCallback(
@@ -258,11 +268,10 @@ export function useRoadmapChecklist(): RoadmapChecklistStore {
         await roadmapRepo.setRoadmapItemCompleted(id, !item.completed);
         await refreshCurrent();
       } catch (error) {
-        reportRoadmapError(error);
-        setStatus("error");
+        await handleWriteError(error);
       }
     },
-    [items, refreshCurrent],
+    [items, refreshCurrent, handleWriteError],
   );
 
   const sections = useMemo(

@@ -1,3 +1,4 @@
+import { runBatch, type BatchStatement } from "@/lib/db/batch";
 import { getDatabase } from "@/lib/db/database";
 import {
   ALL_TABLES,
@@ -55,51 +56,44 @@ export async function readBackupData(): Promise<BackupTables> {
  * tablas: notas, tareas y roadmaps se quedan como están.
  */
 export async function replaceBackupData(backup: BackupFile): Promise<void> {
-  const db = await getDatabase();
   const full = isFullBackup(backup);
   const tables = full ? ALL_TABLES : HABIT_TABLES;
   // En un backup v1 las tablas nuevas no existen; no se leen porque `tables`
   // se limita a las de hábitos.
   const rowsByTable: Partial<Record<BackupTableName, readonly object[]>> = backup;
 
-  await db.execute("BEGIN TRANSACTION");
-  try {
-    for (const table of tables) {
-      await db.execute(`DELETE FROM ${table}`);
+  const statements: BatchStatement[] = tables.map((table) => ({
+    sql: `DELETE FROM ${table}`,
+  }));
+
+  // Se insertan en orden inverso: primero los padres, luego lo que depende.
+  for (const table of [...tables].reverse()) {
+    const columns = BACKUP_TABLE_COLUMNS[table];
+    const placeholders = columns.map((_, index) => `$${index + 1}`).join(", ");
+    const sql = `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${placeholders})`;
+
+    for (const row of rowsByTable[table] ?? []) {
+      const values = row as Record<string, unknown>;
+      statements.push({
+        sql,
+        params: columns.map((column) => values[column] ?? null),
+      });
     }
+  }
 
-    // Se insertan en orden inverso: primero los padres, luego lo que depende.
-    for (const table of [...tables].reverse()) {
-      const columns = BACKUP_TABLE_COLUMNS[table];
-      const placeholders = columns.map((_, index) => `$${index + 1}`).join(", ");
-      const statement = `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${placeholders})`;
-
-      for (const row of rowsByTable[table] ?? []) {
-        const values = row as Record<string, unknown>;
-        await db.execute(
-          statement,
-          columns.map((column) => values[column] ?? null),
-        );
-      }
-    }
-
-    if (full) {
-      // Un backup completo define el estado de los roadmaps: si el usuario
-      // había borrado el de ejemplo, no debe volver a sembrarse.
-      const now = new Date().toISOString();
-      await db.execute(
-        `INSERT INTO app_metadata (key, value, updated_at)
+  if (full) {
+    // Un backup completo define el estado de los roadmaps: si el usuario
+    // había borrado el de ejemplo, no debe volver a sembrarse.
+    statements.push({
+      sql: `INSERT INTO app_metadata (key, value, updated_at)
          VALUES ($1, 'true', $2)
          ON CONFLICT (key) DO UPDATE SET
            value = excluded.value,
            updated_at = excluded.updated_at`,
-        [ROADMAP_SEEDED_KEY, now],
-      );
-    }
-
-    await db.execute("COMMIT");
-  } catch (error) {
-    await db.execute("ROLLBACK").catch(() => undefined);
-    throw error;
+      params: [ROADMAP_SEEDED_KEY, new Date().toISOString()],
+    });
   }
+
+  // Una sola transacción: si algo falla, no se borra ni se inserta nada.
+  await runBatch(statements);
 }

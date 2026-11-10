@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { notify } from "@/lib/notify";
 import * as noteRepo from "../storage/noteRepository";
 import type { Note, NoteInput } from "../types";
 
@@ -18,16 +19,31 @@ export function useNotes(): NotesStore {
   const [status, setStatus] = useState<NotesStatus>("loading");
   const [notes, setNotes] = useState<Note[]>([]);
 
+  const loadedRef = useRef(false);
+
+  /** La pantalla de error completa solo aparece si falla la carga inicial. */
   const reload = useCallback(async () => {
     try {
       const stored = await noteRepo.listNotes();
       setNotes(stored);
+      loadedRef.current = true;
       setStatus("ready");
     } catch (error) {
       console.error("Notes operation failed", error);
-      setStatus("error");
+      if (loadedRef.current) notify.error("No se pudieron recargar las notas.");
+      else setStatus("error");
     }
   }, []);
+
+  /** Un fallo al guardar avisa y recarga para mostrar lo que hay realmente. */
+  const handleWriteError = useCallback(
+    async (error: unknown) => {
+      console.error("Notes operation failed", error);
+      notify.error("No se pudo guardar el cambio en las notas.");
+      await reload();
+    },
+    [reload],
+  );
 
   useEffect(() => {
     void reload();
@@ -39,11 +55,10 @@ export function useNotes(): NotesStore {
         await noteRepo.insertNote(input);
         await reload();
       } catch (error) {
-        console.error("Notes operation failed", error);
-        setStatus("error");
+        await handleWriteError(error);
       }
     },
-    [reload],
+    [reload, handleWriteError],
   );
 
   const updateNote = useCallback(
@@ -52,11 +67,10 @@ export function useNotes(): NotesStore {
         await noteRepo.updateNote(id, input);
         await reload();
       } catch (error) {
-        console.error("Notes operation failed", error);
-        setStatus("error");
+        await handleWriteError(error);
       }
     },
-    [reload],
+    [reload, handleWriteError],
   );
 
   const deleteNote = useCallback(
@@ -65,11 +79,10 @@ export function useNotes(): NotesStore {
         await noteRepo.deleteNote(id);
         await reload();
       } catch (error) {
-        console.error("Notes operation failed", error);
-        setStatus("error");
+        await handleWriteError(error);
       }
     },
-    [reload],
+    [reload, handleWriteError],
   );
 
   const togglePinned = useCallback(
@@ -81,11 +94,10 @@ export function useNotes(): NotesStore {
         await noteRepo.setNotePinned(id, !note.pinned);
         await reload();
       } catch (error) {
-        console.error("Notes operation failed", error);
-        setStatus("error");
+        await handleWriteError(error);
       }
     },
-    [notes, reload],
+    [notes, reload, handleWriteError],
   );
 
   return {

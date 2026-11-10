@@ -90,7 +90,44 @@ describe("migraciones", () => {
     expect(await userVersion(db)).toBe(CURRENT_SCHEMA_VERSION);
   });
 
-  it("beforeMigrate solo se invoca si la base ya tenía datos", async () => {
+  it("beforeMigrate se invoca con una base anterior al versionado (user_version 0 con datos)", async () => {
+    const { db } = await createTestDatabase();
+    await db.execute(
+      `CREATE TABLE habits (id TEXT PRIMARY KEY, name TEXT NOT NULL, type TEXT NOT NULL,
+         target_value INTEGER NOT NULL, unit TEXT NOT NULL, category TEXT,
+         active INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+    );
+    await db.execute(
+      `INSERT INTO habits VALUES ('h1', 'Leer', 'duration', 30, 'minutos', NULL, 1, 'x', 'x')`,
+    );
+    expect(await userVersion(db)).toBe(0);
+
+    const calls: [number, number][] = [];
+    await runMigrations(db, {
+      beforeMigrate: async (from, to) => {
+        calls.push([from, to]);
+      },
+    });
+    expect(calls).toEqual([[0, CURRENT_SCHEMA_VERSION]]);
+    expect(await userVersion(db)).toBe(CURRENT_SCHEMA_VERSION);
+  });
+
+  it("si beforeMigrate falla, no se migra", async () => {
+    const { db } = await createTestDatabase();
+    await db.execute("CREATE TABLE habits (id TEXT PRIMARY KEY)");
+
+    await expect(
+      runMigrations(db, {
+        beforeMigrate: async () => {
+          throw new Error("sin copia");
+        },
+      }),
+    ).rejects.toThrow("sin copia");
+    expect(await userVersion(db)).toBe(0);
+    expect(await tableNames(db)).toEqual(["habits"]);
+  });
+
+  it("beforeMigrate no se invoca en una base nueva y vacía ni sin migraciones pendientes", async () => {
     const calls: [number, number][] = [];
     const beforeMigrate = async (from: number, to: number) => {
       calls.push([from, to]);

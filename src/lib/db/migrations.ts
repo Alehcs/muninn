@@ -171,15 +171,25 @@ export const CURRENT_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;
 
 export interface MigrationOptions {
   /**
-   * Se invoca una sola vez antes de aplicar migraciones pendientes, y solo
-   * si la base ya tenía datos (`fromVersion >= 1`). Pensado para sacar una
-   * copia automática. Si lanza un error, no se migra.
+   * Se invoca una sola vez antes de aplicar migraciones pendientes, siempre
+   * que la base ya contenga datos de usuario (existe la tabla `habits`),
+   * aunque su `user_version` sea 0 (bases anteriores al versionado). Una base
+   * recién creada y vacía no lo invoca. Pensado para sacar una copia
+   * automática. Si lanza un error, no se migra.
    */
   beforeMigrate?: (fromVersion: number, toVersion: number) => Promise<void>;
 }
 
 interface UserVersionRow {
   user_version: number;
+}
+
+/** ¿La base ya tiene datos de usuario? (la tabla `habits` es la señal). */
+async function hasUserTables(db: SqlDatabase): Promise<boolean> {
+  const rows = await db.select<{ name: string }[]>(
+    "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'habits'",
+  );
+  return rows.length > 0;
 }
 
 async function readSchemaVersion(db: SqlDatabase): Promise<number> {
@@ -198,7 +208,7 @@ export async function runMigrations(
   );
   if (pending.length === 0) return;
 
-  if (fromVersion >= 1 && options.beforeMigrate) {
+  if (options.beforeMigrate && (await hasUserTables(db))) {
     await options.beforeMigrate(fromVersion, pending[pending.length - 1].version);
   }
 

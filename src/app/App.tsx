@@ -11,6 +11,7 @@ import StudyView from "@/features/study/components/StudyView";
 import RoadmapView from "@/features/roadmap/components/RoadmapView";
 import TodoListView from "@/features/todos/components/TodoListView";
 import NotesView from "@/features/notes/components/NotesView";
+import Button from "@/components/Button";
 import { useHabits } from "@/features/habits/hooks/useHabits";
 import type { View } from "@/app/navigation";
 
@@ -31,9 +32,12 @@ export default function App() {
       {store.status === "loading" ? (
         <CenteredNotice>Cargando tus hábitos…</CenteredNotice>
       ) : store.status === "error" ? (
-        <CenteredNotice>
-          No se pudieron cargar los datos. Cierra y vuelve a abrir la app.
-        </CenteredNotice>
+        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
+          <p className="text-sm text-text-muted">
+            No se pudieron cargar los datos.
+          </p>
+          <Button onClick={() => void store.reload()}>Reintentar</Button>
+        </div>
       ) : view === "today" ? (
         <TodayView store={store} />
       ) : view === "study" ? (

@@ -1,5 +1,6 @@
 import { createId } from "@/lib/ids";
 import { nullable, optional } from "@/lib/text";
+import { runBatch, type BatchStatement } from "@/lib/db/batch";
 import { getDatabase } from "@/lib/db/database";
 import {
   DEFAULT_ROADMAP_ID,
@@ -302,15 +303,16 @@ export async function updateRoadmap(
 }
 
 export async function deleteRoadmap(id: string): Promise<void> {
-  const db = await getDatabase();
-  await db.execute(
-    `DELETE FROM roadmap_items
+  await runBatch([
+    {
+      sql: `DELETE FROM roadmap_items
       WHERE roadmap_id = $1
          OR ($1 = $2 AND (roadmap_id IS NULL OR roadmap_id = ''))`,
-    [id, DEFAULT_ROADMAP_ID],
-  );
-  await db.execute(`DELETE FROM roadmap_sections WHERE roadmap_id = $1`, [id]);
-  await db.execute(`DELETE FROM roadmaps WHERE id = $1`, [id]);
+      params: [id, DEFAULT_ROADMAP_ID],
+    },
+    { sql: `DELETE FROM roadmap_sections WHERE roadmap_id = $1`, params: [id] },
+    { sql: `DELETE FROM roadmaps WHERE id = $1`, params: [id] },
+  ]);
 }
 
 export async function listRoadmapSections(
@@ -411,12 +413,11 @@ export async function updateRoadmapSection(
 }
 
 export async function deleteRoadmapSection(id: string): Promise<void> {
-  const db = await getDatabase();
   const section = await getRoadmapSection(id);
 
-  if (section) {
-    await db.execute(
-      `DELETE FROM roadmap_items
+  const deleteItems: BatchStatement = section
+    ? {
+        sql: `DELETE FROM roadmap_items
         WHERE section_id = $1
            OR (
              section = $2
@@ -425,13 +426,14 @@ export async function deleteRoadmapSection(id: string): Promise<void> {
                OR ($3 = $4 AND (roadmap_id IS NULL OR roadmap_id = ''))
              )
            )`,
-      [id, section.name, section.roadmapId, DEFAULT_ROADMAP_ID],
-    );
-  } else {
-    await db.execute(`DELETE FROM roadmap_items WHERE section_id = $1`, [id]);
-  }
+        params: [id, section.name, section.roadmapId, DEFAULT_ROADMAP_ID],
+      }
+    : { sql: `DELETE FROM roadmap_items WHERE section_id = $1`, params: [id] };
 
-  await db.execute(`DELETE FROM roadmap_sections WHERE id = $1`, [id]);
+  await runBatch([
+    deleteItems,
+    { sql: `DELETE FROM roadmap_sections WHERE id = $1`, params: [id] },
+  ]);
 }
 
 export async function listRoadmapItems(

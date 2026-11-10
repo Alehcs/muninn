@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
+import Toaster from "@/components/Toaster";
 import { useTimeTheme } from "@/features/theme/useTimeTheme";
 import type { View } from "@/app/navigation";
 
@@ -31,6 +32,7 @@ export default function MainLayout({
         />
         <main className="flex-1 overflow-y-auto p-8">{children}</main>
       </div>
+      <Toaster />
     </div>
   );
 }

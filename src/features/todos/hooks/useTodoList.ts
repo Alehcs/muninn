@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { notify } from "@/lib/notify";
 import * as todoRepo from "../storage/todoRepository";
 import type { TodoInput, TodoItem } from "../types";
 
@@ -21,13 +22,19 @@ export function useTodoList(): TodoListStore {
   const [status, setStatus] = useState<TodoStatus>("loading");
   const [items, setItems] = useState<TodoItem[]>([]);
 
+  const loadedRef = useRef(false);
+
+  /** La pantalla de error completa solo aparece si falla la carga inicial. */
   const reload = useCallback(async () => {
     try {
       const stored = await todoRepo.listTodoItems();
       setItems(stored);
+      loadedRef.current = true;
       setStatus("ready");
-    } catch {
-      setStatus("error");
+    } catch (error) {
+      console.error("Todo operation failed", error);
+      if (loadedRef.current) notify.error("No se pudieron recargar las tareas.");
+      else setStatus("error");
     }
   }, []);
 
@@ -39,16 +46,26 @@ export function useTodoList(): TodoListStore {
     await reload();
   }, [reload]);
 
+  /** Un fallo al guardar avisa y recarga para mostrar lo que hay realmente. */
+  const handleWriteError = useCallback(
+    async (error: unknown) => {
+      console.error("Todo operation failed", error);
+      notify.error("No se pudo guardar el cambio en las tareas.");
+      await reload();
+    },
+    [reload],
+  );
+
   const createTodo = useCallback(
     async (input: TodoInput) => {
       try {
         await todoRepo.insertTodoItem(input);
         await refresh();
-      } catch {
-        setStatus("error");
+      } catch (error) {
+        await handleWriteError(error);
       }
     },
-    [refresh],
+    [refresh, handleWriteError],
   );
 
   const updateTodo = useCallback(
@@ -56,11 +73,11 @@ export function useTodoList(): TodoListStore {
       try {
         await todoRepo.updateTodoItem(id, input);
         await refresh();
-      } catch {
-        setStatus("error");
+      } catch (error) {
+        await handleWriteError(error);
       }
     },
-    [refresh],
+    [refresh, handleWriteError],
   );
 
   const deleteTodo = useCallback(
@@ -68,11 +85,11 @@ export function useTodoList(): TodoListStore {
       try {
         await todoRepo.deleteTodoItem(id);
         await refresh();
-      } catch {
-        setStatus("error");
+      } catch (error) {
+        await handleWriteError(error);
       }
     },
-    [refresh],
+    [refresh, handleWriteError],
   );
 
   const toggleTodo = useCallback(
@@ -83,11 +100,11 @@ export function useTodoList(): TodoListStore {
       try {
         await todoRepo.setTodoCompleted(id, !item.completed);
         await refresh();
-      } catch {
-        setStatus("error");
+      } catch (error) {
+        await handleWriteError(error);
       }
     },
-    [items, refresh],
+    [items, refresh, handleWriteError],
   );
 
   const completed = useMemo(

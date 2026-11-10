@@ -1,15 +1,10 @@
 import { openDatabase } from "@/lib/platform/sqlite";
+import { DATABASE_FILE } from "./file";
 import { runMigrations } from "./migrations";
+import { createSnapshot, ensureDailySnapshot } from "./snapshots";
 import type { SqlDatabase } from "./types";
 
-/**
- * Archivo SQLite local, ubicado en el directorio de datos de la app.
- * En desarrollo (`npm run tauri dev`) se usa un archivo aparte para que
- * programar y probar nunca toque los datos reales de la app instalada.
- */
-export const DATABASE_FILE = import.meta.env.DEV
-  ? "aurhabits-dev.db"
-  : "aurhabits.db";
+export { DATABASE_FILE };
 
 const DATABASE_URL = `sqlite:${DATABASE_FILE}`;
 
@@ -25,7 +20,15 @@ export function getDatabase(): Promise<SqlDatabase> {
   if (connection === null) {
     const attempt = (async () => {
       const db = await openDatabase(DATABASE_URL);
-      await runMigrations(db);
+      await runMigrations(db, {
+        // Sin copia previa no se migra: si esto falla, el error se propaga y
+        // la app no arranca (mejor que migrar sin red).
+        beforeMigrate: async (fromVersion) => {
+          await createSnapshot(`pre-migracion-v${fromVersion}`);
+        },
+      });
+      // Copia diaria (no bloquea la app si falla).
+      await ensureDailySnapshot();
       return db;
     })();
     connection = attempt;

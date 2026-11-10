@@ -1,3 +1,4 @@
+import { runBatch } from "@/lib/db/batch";
 import { getDatabase } from "@/lib/db/database";
 import { defaultHabits } from "../data/defaultHabits";
 import type {
@@ -98,19 +99,12 @@ export async function setHabitActive(
   );
 }
 
-/** Elimina definitivamente un hábito y sus logs en una transacción. */
+/** Elimina definitivamente un hábito y sus logs en una transacción atómica. */
 export async function deleteHabit(id: string): Promise<void> {
-  const db = await getDatabase();
-
-  await db.execute("BEGIN TRANSACTION");
-  try {
-    await db.execute(`DELETE FROM habit_logs WHERE habit_id = $1`, [id]);
-    await db.execute(`DELETE FROM habits WHERE id = $1`, [id]);
-    await db.execute("COMMIT");
-  } catch (error) {
-    await db.execute("ROLLBACK").catch(() => undefined);
-    throw error;
-  }
+  await runBatch([
+    { sql: `DELETE FROM habit_logs WHERE habit_id = $1`, params: [id] },
+    { sql: `DELETE FROM habits WHERE id = $1`, params: [id] },
+  ]);
 }
 
 /**

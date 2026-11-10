@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { notify } from "@/lib/notify";
 import { buildHabit } from "../utils/habitFactory";
 import { getLocalDate } from "../utils/date";
 import { getDailyProgress, getHabitProgress } from "../utils/progress";
@@ -52,6 +53,8 @@ export function useHabits(): HabitsStore {
   const [values, setValues] = useState<Record<string, number>>({});
   const [currentDate, setCurrentDate] = useState(() => getLocalDate());
 
+  const loadedRef = useRef(false);
+
   const reload = useCallback(
     async (options: ReloadOptions = {}) => {
       try {
@@ -65,9 +68,17 @@ export function useHabits(): HabitsStore {
         const todayValues = await habitLogRepo.getValuesForDate(currentDate);
         setHabits(stored);
         setValues(todayValues);
+        loadedRef.current = true;
         setStatus("ready");
-      } catch {
-        setStatus("error");
+      } catch (error) {
+        console.error("No se pudieron cargar los hábitos", error);
+        // La pantalla de error completa solo aparece si falla la carga inicial.
+        if (loadedRef.current) {
+          setStatus("ready");
+          notify.error("No se pudieron recargar tus hábitos.");
+        } else {
+          setStatus("error");
+        }
       }
     },
     [currentDate],
@@ -94,6 +105,16 @@ export function useHabits(): HabitsStore {
     };
   }, [reload]);
 
+  /**
+   * Si una escritura falla, la interfaz ya mostraba el cambio como hecho:
+   * se avisa y se recarga desde la base para que la pantalla refleje la verdad.
+   */
+  const handleWriteError = (error: unknown) => {
+    console.error("No se pudo guardar el cambio", error);
+    notify.error("No se pudo guardar el cambio. Se han recargado tus datos.");
+    void reload({ seedDefaults: false, showLoading: false });
+  };
+
   const applyValue = (
     habitId: string,
     compute: (current: number) => number,
@@ -106,7 +127,7 @@ export function useHabits(): HabitsStore {
       const completed = next >= habit.target;
       void habitLogRepo
         .upsertLog(habitId, currentDate, next, completed)
-        .catch(() => undefined);
+        .catch(handleWriteError);
     }
   };
 
@@ -121,14 +142,14 @@ export function useHabits(): HabitsStore {
     const habit = buildHabit(input);
     setHabits((prev) => [...prev, habit]);
     setValues((prev) => ({ ...prev, [habit.id]: 0 }));
-    void habitRepo.insertHabit(habit).catch(() => undefined);
+    void habitRepo.insertHabit(habit).catch(handleWriteError);
   };
 
   const updateHabit = (id: string, patch: HabitEditInput) => {
     setHabits((prev) =>
       prev.map((habit) => (habit.id === id ? { ...habit, ...patch } : habit)),
     );
-    void habitRepo.updateHabit(id, patch).catch(() => undefined);
+    void habitRepo.updateHabit(id, patch).catch(handleWriteError);
   };
 
   const toggleActive = (id: string) => {
@@ -139,7 +160,7 @@ export function useHabits(): HabitsStore {
         item.id === id ? { ...item, active: nextActive } : item,
       ),
     );
-    void habitRepo.setHabitActive(id, nextActive).catch(() => undefined);
+    void habitRepo.setHabitActive(id, nextActive).catch(handleWriteError);
   };
 
   const deleteHabit = (id: string) => {
@@ -149,7 +170,7 @@ export function useHabits(): HabitsStore {
       delete next[id];
       return next;
     });
-    void habitRepo.deleteHabit(id).catch(() => undefined);
+    void habitRepo.deleteHabit(id).catch(handleWriteError);
   };
 
   const activeHabits = useMemo(
