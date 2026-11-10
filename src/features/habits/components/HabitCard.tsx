@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Button from "@/components/Button";
 import { cn } from "@/utils/cn";
 import type { HabitProgress, HabitStatus, HabitType } from "../types";
 
@@ -24,16 +25,6 @@ const STATUS_META: Record<HabitStatus, { label: string; badge: string }> = {
   completed: { label: "Completado", badge: "bg-success/20 text-success" },
 };
 
-const BTN_BASE =
-  "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-40";
-const BTN_PRIMARY = cn(
-  BTN_BASE,
-  "bg-accent text-accent-foreground hover:bg-accent-hover",
-);
-const BTN_GHOST = cn(
-  BTN_BASE,
-  "border border-border text-text-muted hover:bg-surface-hover hover:text-text",
-);
 const TIMER_OPTIONS = [15, 30, 45, 60];
 
 function formatProgress(progress: HabitProgress): string {
@@ -91,50 +82,44 @@ export default function HabitCard({
 
       <div className="mt-4 flex flex-wrap gap-2">
         {habit.type === "check" && (
-          <button
-            className={isCompleted ? BTN_GHOST : BTN_PRIMARY}
+          <Button
+            variant={isCompleted ? "ghost" : "primary"}
             onClick={onToggleCheck}
           >
             {isCompleted ? "Desmarcar" : "Marcar como hecho"}
-          </button>
+          </Button>
         )}
 
         {habit.type === "count" && (
           <>
-            <button className={BTN_PRIMARY} onClick={onIncrement}>
-              +1
-            </button>
-            <button className={BTN_GHOST} onClick={onReset}>
+            <Button onClick={onIncrement}>+1</Button>
+            <Button variant="ghost" onClick={onReset}>
               Reiniciar
-            </button>
+            </Button>
           </>
         )}
 
         {habit.type === "duration" && (
           <>
-            <button className={BTN_PRIMARY} onClick={() => onAddMinutes(15)}>
-              +15 min
-            </button>
-            <button className={BTN_PRIMARY} onClick={() => onAddMinutes(30)}>
-              +30 min
-            </button>
-            <button className={BTN_GHOST} onClick={onReset}>
+            <Button onClick={() => onAddMinutes(15)}>+15 min</Button>
+            <Button onClick={() => onAddMinutes(30)}>+30 min</Button>
+            <Button variant="ghost" onClick={onReset}>
               Reiniciar
-            </button>
+            </Button>
             {onStartTimer && (
               <div className="mt-2 flex basis-full flex-wrap items-center gap-2 border-t border-border pt-3">
-                <button
-                  className={BTN_GHOST}
+                <Button
+                  variant="ghost"
                   disabled={timerDisabled}
                   onClick={() => setShowTimerOptions((open) => !open)}
                 >
                   Iniciar timer
-                </button>
+                </Button>
                 {showTimerOptions &&
                   TIMER_OPTIONS.map((minutes) => (
-                    <button
+                    <Button
                       key={minutes}
-                      className={BTN_GHOST}
+                      variant="ghost"
                       disabled={timerDisabled}
                       onClick={() => {
                         setShowTimerOptions(false);
@@ -142,7 +127,7 @@ export default function HabitCard({
                       }}
                     >
                       {minutes} min
-                    </button>
+                    </Button>
                   ))}
               </div>
             )}

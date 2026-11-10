@@ -1,3 +1,4 @@
+import { inputCls, labelCls } from "@/components/formStyles";
 import { cn } from "@/utils/cn";
 import type { PomodoroConfig } from "@/features/study/utils/pomodoroPresets";
 import { POMODORO_PRESETS } from "@/features/study/utils/pomodoroPresets";
@@ -11,9 +12,6 @@ interface PomodoroPresetSelectorProps {
   onCustomChange: (config: PomodoroConfig) => void;
 }
 
-const inputCls =
-  "w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text outline-none focus:border-accent disabled:opacity-60";
-const labelCls = "mb-1 block text-xs font-medium text-text-muted";
 
 function clampPositive(value: string, fallback: number): number {
   const parsed = Number(value);
@@ -92,7 +90,7 @@ export default function PomodoroPresetSelector({
           <label>
             <span className={labelCls}>Estudio</span>
             <input
-              className={inputCls}
+              className={`${inputCls} text-text disabled:opacity-60`}
               type="number"
               min="1"
               max="180"
@@ -113,7 +111,7 @@ export default function PomodoroPresetSelector({
           <label>
             <span className={labelCls}>Descanso</span>
             <input
-              className={inputCls}
+              className={`${inputCls} text-text disabled:opacity-60`}
               type="number"
               min="1"
               max="60"
@@ -134,7 +132,7 @@ export default function PomodoroPresetSelector({
           <label>
             <span className={labelCls}>Ciclos</span>
             <input
-              className={inputCls}
+              className={`${inputCls} text-text disabled:opacity-60`}
               type="number"
               min="1"
               max="12"

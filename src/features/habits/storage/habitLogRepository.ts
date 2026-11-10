@@ -1,4 +1,5 @@
-import { getDatabase } from "./database";
+import { createId } from "@/lib/ids";
+import { getDatabase } from "@/lib/db/database";
 
 /** Fila reducida usada para reconstruir el progreso del día. */
 interface HabitLogValueRow {
@@ -13,12 +14,6 @@ interface HabitLogRangeRow extends HabitLogValueRow {
 
 interface EarliestLogRow {
   date: string | null;
-}
-
-function generateLogId(): string {
-  return `log-${Date.now().toString(36)}-${Math.random()
-    .toString(36)
-    .slice(2, 8)}`;
 }
 
 /** Devuelve los valores registrados en una fecha, indexados por id de hábito. */
@@ -87,7 +82,7 @@ export async function upsertLog(
        value = excluded.value,
        completed = excluded.completed,
        updated_at = excluded.updated_at`,
-    [generateLogId(), habitId, date, value, completed ? 1 : 0, now, now],
+    [createId("log"), habitId, date, value, completed ? 1 : 0, now, now],
   );
 }
 

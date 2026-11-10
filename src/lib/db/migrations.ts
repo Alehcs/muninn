@@ -1,6 +1,6 @@
-import type Database from "@tauri-apps/plugin-sql";
+import type { SqlDatabase } from "./types";
 
-/** Sentencias idempotentes que crean el esquema local. */
+/** Sentencias idempotentes que crean el esquema de la migración 1. */
 const SCHEMA: string[] = [
   `CREATE TABLE IF NOT EXISTS habits (
     id TEXT PRIMARY KEY,
@@ -115,7 +115,7 @@ const POST_COLUMN_INDEXES = [
 ];
 
 async function ensureColumn(
-  db: Database,
+  db: SqlDatabase,
   table: string,
   column: string,
   definition: string,
@@ -128,17 +128,83 @@ async function ensureColumn(
   }
 }
 
-/** Crea el esquema si no existe. Seguro de ejecutar en cada arranque. */
-export async function runMigrations(db: Database): Promise<void> {
-  for (const statement of SCHEMA) {
-    await db.execute(statement);
+/**
+ * Migraciones versionadas, en orden ascendente de `version`.
+ *
+ * REGLA INVIOLABLE: una migración nunca hace DROP ni DELETE de datos de
+ * usuario (ni tablas, ni columnas, ni filas). Solo añade: tablas, columnas,
+ * índices o rellena valores nuevos. Si hay que reorganizar datos, se copian
+ * a una estructura nueva y la antigua se deja intacta.
+ *
+ * Para añadir una migración, agrega un elemento al final con `version`
+ * consecutiva; `CURRENT_SCHEMA_VERSION` se deriva solo.
+ */
+export interface Migration {
+  version: number;
+  name: string;
+  up(db: SqlDatabase): Promise<void>;
+}
+
+export const MIGRATIONS: Migration[] = [
+  {
+    version: 1,
+    name: "esquema inicial",
+    // Idempotente a propósito: las bases creadas antes de existir el
+    // versionado (user_version 0) ya contienen este esquema.
+    async up(db) {
+      for (const statement of SCHEMA) {
+        await db.execute(statement);
+      }
+
+      for (const column of ROADMAP_ITEM_COLUMNS) {
+        await ensureColumn(db, "roadmap_items", column.name, column.definition);
+      }
+
+      for (const statement of POST_COLUMN_INDEXES) {
+        await db.execute(statement);
+      }
+    },
+  },
+];
+
+export const CURRENT_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;
+
+export interface MigrationOptions {
+  /**
+   * Se invoca una sola vez antes de aplicar migraciones pendientes, y solo
+   * si la base ya tenía datos (`fromVersion >= 1`). Pensado para sacar una
+   * copia automática. Si lanza un error, no se migra.
+   */
+  beforeMigrate?: (fromVersion: number, toVersion: number) => Promise<void>;
+}
+
+interface UserVersionRow {
+  user_version: number;
+}
+
+async function readSchemaVersion(db: SqlDatabase): Promise<number> {
+  const rows = await db.select<UserVersionRow[]>("PRAGMA user_version");
+  return rows[0]?.user_version ?? 0;
+}
+
+/** Aplica las migraciones pendientes. Seguro de ejecutar en cada arranque. */
+export async function runMigrations(
+  db: SqlDatabase,
+  options: MigrationOptions = {},
+): Promise<void> {
+  const fromVersion = await readSchemaVersion(db);
+  const pending = MIGRATIONS.filter((m) => m.version > fromVersion).sort(
+    (a, b) => a.version - b.version,
+  );
+  if (pending.length === 0) return;
+
+  if (fromVersion >= 1 && options.beforeMigrate) {
+    await options.beforeMigrate(fromVersion, pending[pending.length - 1].version);
   }
 
-  for (const column of ROADMAP_ITEM_COLUMNS) {
-    await ensureColumn(db, "roadmap_items", column.name, column.definition);
-  }
-
-  for (const statement of POST_COLUMN_INDEXES) {
-    await db.execute(statement);
+  for (const migration of pending) {
+    await migration.up(db);
+    // PRAGMA no admite parámetros; `version` es un entero propio, no del usuario.
+    await db.execute(`PRAGMA user_version = ${Math.trunc(migration.version)}`);
   }
 }

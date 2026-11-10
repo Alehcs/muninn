@@ -1,4 +1,4 @@
-import { getDatabase } from "./database";
+import { getDatabase } from "@/lib/db/database";
 import {
   ALL_TABLES,
   BACKUP_TABLE_COLUMNS,

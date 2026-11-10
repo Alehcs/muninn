@@ -1,3 +1,4 @@
+import { inputCls, labelCls } from "@/components/formStyles";
 import { useMemo, useState } from "react";
 import Button from "@/components/Button";
 import type { RoadmapSection, RoadmapSectionInput } from "../types";
@@ -8,9 +9,6 @@ interface RoadmapSectionFormProps {
   onCancel: () => void;
 }
 
-const inputCls =
-  "w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-accent";
-const labelCls = "mb-1 block text-xs font-medium text-text-muted";
 
 export default function RoadmapSectionForm({
   initial,

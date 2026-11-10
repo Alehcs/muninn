@@ -1,3 +1,5 @@
+import { inputCls, labelCls } from "@/components/formStyles";
+import { optional } from "@/lib/text";
 import { useMemo, useState } from "react";
 import Button from "@/components/Button";
 import type {
@@ -14,14 +16,6 @@ interface RoadmapItemFormProps {
   onCancel: () => void;
 }
 
-const inputCls =
-  "w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-accent";
-const labelCls = "mb-1 block text-xs font-medium text-text-muted";
-
-function optional(value: string): string | undefined {
-  const trimmed = value.trim();
-  return trimmed.length === 0 ? undefined : trimmed;
-}
 
 export default function RoadmapItemForm({
   initial,

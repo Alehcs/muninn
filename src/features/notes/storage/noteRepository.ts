@@ -1,4 +1,6 @@
-import { getDatabase } from "@/features/habits/storage/database";
+import { createId } from "@/lib/ids";
+import { nullable, optional } from "@/lib/text";
+import { getDatabase } from "@/lib/db/database";
 import type { Note, NoteInput } from "../types";
 
 interface NoteRow {
@@ -9,21 +11,6 @@ interface NoteRow {
   pinned: number;
   created_at: string;
   updated_at: string;
-}
-
-function optional(value: string | null): string | undefined {
-  return value === null || value.trim() === "" ? undefined : value;
-}
-
-function nullable(value: string | undefined): string | null {
-  const trimmed = value?.trim() ?? "";
-  return trimmed.length === 0 ? null : trimmed;
-}
-
-function generateNoteId(): string {
-  return `note-${Date.now().toString(36)}-${Math.random()
-    .toString(36)
-    .slice(2, 8)}`;
 }
 
 function toNote(row: NoteRow): Note {
@@ -53,7 +40,7 @@ export async function insertNote(input: NoteInput): Promise<Note> {
   const db = await getDatabase();
   const now = new Date().toISOString();
   const note: Note = {
-    id: generateNoteId(),
+    id: createId("note"),
     title: input.title,
     content: input.content,
     category: nullable(input.category) ?? undefined,

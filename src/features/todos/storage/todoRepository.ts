@@ -1,4 +1,6 @@
-import { getDatabase } from "@/features/habits/storage/database";
+import { createId } from "@/lib/ids";
+import { nullable, optional } from "@/lib/text";
+import { getDatabase } from "@/lib/db/database";
 import type { TodoInput, TodoItem } from "../types";
 
 interface TodoItemRow {
@@ -10,21 +12,6 @@ interface TodoItemRow {
   created_at: string;
   updated_at: string;
   completed_at: string | null;
-}
-
-function optional(value: string | null): string | undefined {
-  return value === null || value.trim() === "" ? undefined : value;
-}
-
-function nullable(value: string | undefined): string | null {
-  const trimmed = value?.trim() ?? "";
-  return trimmed.length === 0 ? null : trimmed;
-}
-
-function generateTodoId(): string {
-  return `todo-${Date.now().toString(36)}-${Math.random()
-    .toString(36)
-    .slice(2, 8)}`;
 }
 
 function toTodoItem(row: TodoItemRow): TodoItem {
@@ -65,7 +52,7 @@ export async function insertTodoItem(input: TodoInput): Promise<TodoItem> {
   const now = new Date().toISOString();
   const orderIndex = input.orderIndex ?? (await getNextOrderIndex());
   const item: TodoItem = {
-    id: generateTodoId(),
+    id: createId("todo"),
     title: input.title,
     notes: nullable(input.notes) ?? undefined,
     completed: false,

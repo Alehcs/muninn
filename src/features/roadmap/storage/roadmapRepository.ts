@@ -1,4 +1,6 @@
-import { getDatabase } from "@/features/habits/storage/database";
+import { createId } from "@/lib/ids";
+import { nullable, optional } from "@/lib/text";
+import { getDatabase } from "@/lib/db/database";
 import {
   DEFAULT_ROADMAP_ID,
   DEFAULT_ROADMAP_SECTIONS,
@@ -57,21 +59,6 @@ interface RoadmapItemRow {
   created_at: string;
   updated_at: string;
   completed_at: string | null;
-}
-
-function optional(value: string | null): string | undefined {
-  return value === null || value.trim() === "" ? undefined : value;
-}
-
-function nullable(value: string | undefined): string | null {
-  const trimmed = value?.trim() ?? "";
-  return trimmed.length === 0 ? null : trimmed;
-}
-
-function generateId(prefix: string): string {
-  return `${prefix}-${Date.now().toString(36)}-${Math.random()
-    .toString(36)
-    .slice(2, 8)}`;
 }
 
 function toRoadmap(row: RoadmapRow): Roadmap {
@@ -282,7 +269,7 @@ export async function insertRoadmap(input: RoadmapInput): Promise<Roadmap> {
   const db = await getDatabase();
   const now = new Date().toISOString();
   const roadmap: Roadmap = {
-    id: generateId("roadmap"),
+    id: createId("roadmap"),
     title: input.title,
     description: nullable(input.description) ?? undefined,
     createdAt: now,
@@ -377,7 +364,7 @@ export async function insertRoadmapSection(
   const now = new Date().toISOString();
   const order = input.order ?? (await getNextSectionOrder(roadmapId));
   const section: RoadmapSection = {
-    id: generateId("roadmap-section"),
+    id: createId("roadmap-section"),
     roadmapId,
     name: input.name,
     order,
@@ -500,7 +487,7 @@ export async function insertRoadmapItem(
   const orderIndex =
     input.orderIndex ?? (await getNextOrderIndex(input.sectionId));
   const item: RoadmapItem = {
-    id: generateId("roadmap-item"),
+    id: createId("roadmap-item"),
     roadmapId: section.roadmapId,
     sectionId: section.id,
     section: section.name,

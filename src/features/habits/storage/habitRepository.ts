@@ -1,4 +1,4 @@
-import { getDatabase } from "./database";
+import { getDatabase } from "@/lib/db/database";
 import { defaultHabits } from "../data/defaultHabits";
 import type {
   Habit,

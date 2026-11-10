@@ -1,6 +1,6 @@
 import Button from "@/components/Button";
 import { cn } from "@/utils/cn";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternalUrl } from "@/lib/platform/links";
 import type { RoadmapItem } from "../types";
 
 interface RoadmapItemRowProps {
@@ -23,7 +23,7 @@ export default function RoadmapItemRow({
       /^https?:\/\//i.test(item.url) || /^mailto:/i.test(item.url)
         ? item.url
         : `https://${item.url}`;
-    void openUrl(normalized).catch(() => undefined);
+    void openExternalUrl(normalized).catch(() => undefined);
   };
 
   return (

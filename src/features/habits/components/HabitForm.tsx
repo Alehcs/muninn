@@ -1,3 +1,4 @@
+import { inputCls, labelCls } from "@/components/formStyles";
 import { useState } from "react";
 import Button from "@/components/Button";
 import type {
@@ -37,9 +38,6 @@ const CATEGORY_OPTIONS: HabitCategory[] = [
   "otra",
 ];
 
-const inputCls =
-  "w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-accent disabled:opacity-60";
-const labelCls = "mb-1 block text-xs font-medium text-text-muted";
 
 export default function HabitForm({
   initial,
@@ -82,7 +80,7 @@ export default function HabitForm({
         <div>
           <label className={labelCls}>Nombre</label>
           <input
-            className={inputCls}
+            className={`${inputCls} disabled:opacity-60`}
             value={name}
             onChange={(event) => setName(event.target.value)}
             placeholder="Ej. Beber agua"
@@ -93,7 +91,7 @@ export default function HabitForm({
           <div className="flex-1">
             <label className={labelCls}>Tipo</label>
             <select
-              className={inputCls}
+              className={`${inputCls} disabled:opacity-60`}
               value={type}
               disabled={isEdit}
               onChange={(event) => setType(event.target.value as HabitType)}
@@ -110,7 +108,7 @@ export default function HabitForm({
             <input
               type="number"
               min="1"
-              className={inputCls}
+              className={`${inputCls} disabled:opacity-60`}
               value={target}
               onChange={(event) => setTarget(event.target.value)}
             />
@@ -121,7 +119,7 @@ export default function HabitForm({
           <div className="flex-1">
             <label className={labelCls}>Unidad</label>
             <select
-              className={inputCls}
+              className={`${inputCls} disabled:opacity-60`}
               value={unit}
               disabled={isEdit}
               onChange={(event) => setUnit(event.target.value as HabitUnit)}
@@ -136,7 +134,7 @@ export default function HabitForm({
           <div className="flex-1">
             <label className={labelCls}>Categoría (opcional)</label>
             <select
-              className={inputCls}
+              className={`${inputCls} disabled:opacity-60`}
               value={category}
               onChange={(event) =>
                 setCategory(event.target.value as HabitCategory | "")
