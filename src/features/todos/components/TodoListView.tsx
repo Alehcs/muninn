@@ -1,5 +1,7 @@
 import { useState } from "react";
 import Button from "@/components/Button";
+import { Page, PageStrip } from "@/components/PageHeader";
+import { confirm } from "@/lib/confirm";
 import TodoItemForm from "./TodoItemForm";
 import TodoItemRow from "./TodoItemRow";
 import { useTodoList } from "../hooks/useTodoList";
@@ -22,8 +24,13 @@ export default function TodoListView() {
     setForm({ open: false });
   };
 
-  const handleDelete = (item: TodoItem) => {
-    const ok = window.confirm(`Eliminar la tarea "${item.title}"?`);
+  const handleDelete = async (item: TodoItem) => {
+    const ok = await confirm({
+      title: "Eliminar tarea",
+      message: `¿Eliminar la tarea "${item.title}"?`,
+      confirmLabel: "Eliminar",
+      destructive: true,
+    });
     if (!ok) return;
     setForm({ open: false });
     void todo.deleteTodo(item.id);
@@ -31,17 +38,17 @@ export default function TodoListView() {
 
   if (todo.status === "loading") {
     return (
-      <section className="mx-auto max-w-3xl">
+      <Page title="Tareas">
         <p className="text-sm text-text-muted">Cargando tareas…</p>
-      </section>
+      </Page>
     );
   }
 
   if (todo.status === "error") {
     return (
-      <section className="mx-auto max-w-3xl">
+      <Page title="Tareas">
         <div className="rounded-xl border border-border bg-surface p-5">
-          <h2 className="font-semibold">No se pudo cargar TODO</h2>
+          <h2 className="font-semibold">No se pudieron cargar las tareas</h2>
           <p className="mt-1 text-sm text-text-muted">
             Cierra y vuelve a abrir la app. Tus datos siguen siendo locales.
           </p>
@@ -49,50 +56,41 @@ export default function TodoListView() {
             Reintentar
           </Button>
         </div>
-      </section>
+      </Page>
     );
   }
 
   return (
-    <section className="mx-auto max-w-3xl">
-      <div className="rounded-xl border border-border bg-surface p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium text-text-muted">TODO</p>
-            <h2 className="mt-1 text-2xl font-semibold">Lista de tareas</h2>
-            <p className="mt-2 max-w-2xl text-sm text-text-muted">
-              Cosas sueltas que necesitan una casa temporal.
-            </p>
-          </div>
-
-          {!form.open && (
-            <Button onClick={() => setForm({ open: true })}>
-              Nueva tarea
-            </Button>
-          )}
+    <Page
+      title="Tareas"
+      primaryAction={{
+        label: "Nueva tarea",
+        onClick: () => setForm({ open: true }),
+        hidden: form.open,
+      }}
+    >
+      <PageStrip>
+        <p className="text-sm text-text-muted">
+          <span className="text-lg font-semibold text-text">{todo.percent}%</span>{" "}
+          · {todo.completed}/{todo.total} tareas
+        </p>
+        <div
+          className="h-2 min-w-32 flex-1 overflow-hidden rounded-full bg-surface-hover"
+          role="progressbar"
+          aria-label="Progreso de tareas"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={todo.percent}
+        >
+          <div
+            className="h-full rounded-full bg-success"
+            style={{ width: `${todo.percent}%` }}
+          />
         </div>
-
-        <div className="mt-5 grid gap-4 md:grid-cols-[160px_minmax(0,1fr)]">
-          <div>
-            <p className="text-3xl font-semibold">{todo.percent}%</p>
-            <p className="mt-1 text-sm text-text-muted">
-              {todo.completed}/{todo.total} tareas
-            </p>
-          </div>
-
-          <div className="flex min-h-16 flex-col justify-center">
-            <div className="h-3 overflow-hidden rounded-full bg-bg">
-              <div
-                className="h-full rounded-full bg-success"
-                style={{ width: `${todo.percent}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+      </PageStrip>
 
       {form.open && (
-        <div className="mt-5">
+        <div className="mb-5">
           <TodoItemForm
             initial={form.item}
             onSubmit={handleSubmit}
@@ -102,25 +100,25 @@ export default function TodoListView() {
       )}
 
       {todo.items.length === 0 ? (
-        <div className="mt-6 rounded-xl border border-border bg-surface p-5">
+        <div className="rounded-xl border border-border bg-surface p-5">
           <h3 className="font-medium">Sin tareas todavía</h3>
           <p className="mt-1 text-sm text-text-muted">
-            Crea una tarea nueva cuando algo no pertenezca a hábitos ni roadmap.
+            Crea una tarea nueva cuando algo no pertenezca a hábitos ni listas.
           </p>
         </div>
       ) : (
-        <div className="mt-6 flex flex-col gap-3">
+        <div className="flex flex-col gap-3">
           {todo.items.map((item) => (
             <TodoItemRow
               key={item.id}
               item={item}
               onToggle={() => void todo.toggleTodo(item.id)}
               onEdit={() => setForm({ open: true, item })}
-              onDelete={() => handleDelete(item)}
+              onDelete={() => void handleDelete(item)}
             />
           ))}
         </div>
       )}
-    </section>
+    </Page>
   );
 }

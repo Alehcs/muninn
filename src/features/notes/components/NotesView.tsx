@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
 import Button from "@/components/Button";
+import { Page, PageStrip } from "@/components/PageHeader";
+import { inputCls } from "@/components/formStyles";
+import { confirm } from "@/lib/confirm";
 import NoteCard from "./NoteCard";
 import NoteForm from "./NoteForm";
 import { useNotes } from "../hooks/useNotes";
@@ -33,8 +36,13 @@ export default function NotesView() {
     setForm({ open: false });
   };
 
-  const handleDelete = (note: Note) => {
-    const ok = window.confirm(`Eliminar la nota "${note.title}"?`);
+  const handleDelete = async (note: Note) => {
+    const ok = await confirm({
+      title: "Eliminar nota",
+      message: `¿Eliminar la nota "${note.title}"?`,
+      confirmLabel: "Eliminar",
+      destructive: true,
+    });
     if (!ok) return;
 
     setForm({ open: false });
@@ -43,15 +51,15 @@ export default function NotesView() {
 
   if (notes.status === "loading") {
     return (
-      <section className="mx-auto max-w-4xl">
+      <Page title="Notas" width="4xl">
         <p className="text-sm text-text-muted">Cargando notas…</p>
-      </section>
+      </Page>
     );
   }
 
   if (notes.status === "error") {
     return (
-      <section className="mx-auto max-w-4xl">
+      <Page title="Notas" width="4xl">
         <div className="rounded-xl border border-border bg-surface p-5">
           <h2 className="font-semibold">No se pudieron cargar las notas</h2>
           <p className="mt-1 text-sm text-text-muted">
@@ -61,42 +69,35 @@ export default function NotesView() {
             Reintentar
           </Button>
         </div>
-      </section>
+      </Page>
     );
   }
 
   return (
-    <section className="mx-auto max-w-4xl">
-      <div className="rounded-xl border border-border bg-surface p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium text-text-muted">Notas</p>
-            <h2 className="mt-1 text-2xl font-semibold">Notas y listas libres</h2>
-            <p className="mt-2 max-w-2xl text-sm text-text-muted">
-              Apuntes, listas, ideas, links y cualquier cosa que no necesite checkbox.
-            </p>
-          </div>
-
-          {!form.open && (
-            <Button onClick={() => setForm({ open: true })}>Nueva nota</Button>
-          )}
-        </div>
-
-        <div className="mt-5">
-          <label className="mb-1 block text-xs font-medium text-text-muted">
-            Buscar
-          </label>
+    <Page
+      title="Notas"
+      width="4xl"
+      primaryAction={{
+        label: "Nueva nota",
+        onClick: () => setForm({ open: true }),
+        hidden: form.open,
+      }}
+    >
+      <PageStrip>
+        <label className="flex min-w-0 flex-1 items-center gap-2 text-xs font-medium text-text-muted">
+          Buscar
           <input
-            className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-accent"
+            type="search"
+            className={inputCls}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Título, categoría o contenido"
           />
-        </div>
-      </div>
+        </label>
+      </PageStrip>
 
       {form.open && (
-        <div className="mt-5">
+        <div className="mb-5">
           <NoteForm
             initial={form.note}
             onSubmit={handleSubmit}
@@ -106,7 +107,7 @@ export default function NotesView() {
       )}
 
       {filteredNotes.length === 0 ? (
-        <div className="mt-6 rounded-xl border border-border bg-surface p-5">
+        <div className="rounded-xl border border-border bg-surface p-5">
           <h3 className="font-medium">
             {notes.notes.length === 0 ? "Sin notas todavía" : "Sin resultados"}
           </h3>
@@ -117,18 +118,18 @@ export default function NotesView() {
           </p>
         </div>
       ) : (
-        <div className="mt-6 flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
           {filteredNotes.map((note) => (
             <NoteCard
               key={note.id}
               note={note}
               onEdit={() => setForm({ open: true, note })}
-              onDelete={() => handleDelete(note)}
+              onDelete={() => void handleDelete(note)}
               onTogglePinned={() => void notes.togglePinned(note.id)}
             />
           ))}
         </div>
       )}
-    </section>
+    </Page>
   );
 }

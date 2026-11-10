@@ -18,10 +18,16 @@ export default function ThemeModeSelector({
   onChange,
 }: ThemeModeSelectorProps) {
   return (
-    <div className="flex gap-1 rounded-lg border border-border bg-surface p-1">
+    <div
+      role="group"
+      aria-label="Tema"
+      className="inline-flex gap-1 rounded-lg border border-border bg-bg p-1"
+    >
       {OPTIONS.map((option) => (
         <button
           key={option.value}
+          type="button"
+          aria-pressed={value === option.value}
           onClick={() => onChange(option.value)}
           className={cn(
             "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",

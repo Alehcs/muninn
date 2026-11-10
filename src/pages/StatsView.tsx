@@ -11,14 +11,7 @@ export default function StatsView({ store }: StatsViewProps) {
   const stats = useStats({ habits: store.habits, daily: store.daily });
 
   return (
-    <section className="mx-auto max-w-4xl">
-      <div>
-        <h2 className="text-lg font-semibold">Estadísticas simples</h2>
-        <p className="text-sm text-text-muted">
-          Cumplimiento y rachas basadas en tus registros locales.
-        </p>
-      </div>
-
+    <section>
       <div className="mt-6">
         <StatsSummary summary={stats.summary} />
       </div>

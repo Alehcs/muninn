@@ -31,22 +31,14 @@ export default function CalendarView({ store }: CalendarViewProps) {
   };
 
   return (
-    <section className="mx-auto max-w-6xl">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold">Calendario mensual</h2>
-          <p className="text-sm text-text-muted">
-            Revisa el cumplimiento diario de tus hábitos activos.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="ghost" onClick={() => navigateMonth(-1)}>
-            Mes anterior
-          </Button>
-          <Button variant="ghost" onClick={() => navigateMonth(1)}>
-            Mes siguiente
-          </Button>
-        </div>
+    <section>
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" onClick={() => navigateMonth(-1)}>
+          Mes anterior
+        </Button>
+        <Button variant="ghost" onClick={() => navigateMonth(1)}>
+          Mes siguiente
+        </Button>
       </div>
 
       {calendar.status === "error" ? (

@@ -1,7 +1,7 @@
-import { inputCls, labelCls } from "@/components/formStyles";
+import FormCard, { Field } from "@/components/FormCard";
+import { inputCls } from "@/components/formStyles";
 import { optional } from "@/lib/text";
 import { useMemo, useState } from "react";
-import Button from "@/components/Button";
 import type {
   RoadmapItem,
   RoadmapItemInput,
@@ -63,107 +63,88 @@ export default function RoadmapItemForm({
   };
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-5">
-      <h3 className="font-medium">
-        {isEdit ? "Editar item" : "Nuevo item del roadmap"}
-      </h3>
+    <FormCard
+      title={isEdit ? "Editar item" : "Nuevo item de la lista"}
+      submitLabel={isEdit ? "Guardar cambios" : "Crear item"}
+      valid={valid}
+      onSubmit={handleSubmit}
+      onCancel={onCancel}
+      note="Deja el orden vacío para enviarlo al final de la sección."
+    >
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_140px]">
+        <Field label="Sección">
+          <select
+            className={inputCls}
+            value={sectionId}
+            onChange={(event) => setSectionId(event.target.value)}
+          >
+            {sectionOptions.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.name}
+              </option>
+            ))}
+          </select>
+        </Field>
 
-      <div className="mt-4 flex flex-col gap-3">
-        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_140px]">
-          <div>
-            <label className={labelCls}>Sección</label>
-            <select
-              className={inputCls}
-              value={sectionId}
-              onChange={(event) => setSectionId(event.target.value)}
-            >
-              {sectionOptions.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className={labelCls}>Orden</label>
-            <input
-              className={inputCls}
-              inputMode="numeric"
-              min="1"
-              type="number"
-              value={orderIndex}
-              onChange={(event) => setOrderIndex(event.target.value)}
-              placeholder="Auto"
-            />
-          </div>
-        </div>
-
-        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
-          <div>
-            <label className={labelCls}>Título</label>
-            <input
-              className={inputCls}
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="Ej. System design basics"
-            />
-          </div>
-
-          <div>
-            <label className={labelCls}>Tipo (opcional)</label>
-            <input
-              className={inputCls}
-              value={type}
-              onChange={(event) => setType(event.target.value)}
-              placeholder="Course, Skill..."
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className={labelCls}>Descripción (opcional)</label>
+        <Field label="Orden">
           <input
             className={inputCls}
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            placeholder="Contexto corto sobre qué significa completar esto"
+            inputMode="numeric"
+            min="1"
+            type="number"
+            value={orderIndex}
+            onChange={(event) => setOrderIndex(event.target.value)}
+            placeholder="Auto"
           />
-        </div>
+        </Field>
+      </div>
 
-        <div>
-          <label className={labelCls}>Notas (opcional)</label>
-          <textarea
-            className={`${inputCls} min-h-24 resize-y`}
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            placeholder="Recursos, criterios personales, recordatorios..."
-          />
-        </div>
-
-        <div>
-          <label className={labelCls}>Link (opcional)</label>
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
+        <Field label="Título">
           <input
             className={inputCls}
-            value={url}
-            onChange={(event) => setUrl(event.target.value)}
-            placeholder="https://..."
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="Ej. System design basics"
           />
-        </div>
+        </Field>
+
+        <Field label="Tipo (opcional)">
+          <input
+            className={inputCls}
+            value={type}
+            onChange={(event) => setType(event.target.value)}
+            placeholder="Course, Skill..."
+          />
+        </Field>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button onClick={handleSubmit} disabled={!valid}>
-          {isEdit ? "Guardar cambios" : "Crear item"}
-        </Button>
-        <Button variant="ghost" onClick={onCancel}>
-          Cancelar
-        </Button>
-      </div>
+      <Field label="Descripción (opcional)">
+        <input
+          className={inputCls}
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+          placeholder="Contexto corto sobre qué significa completar esto"
+        />
+      </Field>
 
-      <p className="mt-3 text-xs text-text-muted">
-        Deja el orden vacío para enviarlo al final de la sección.
-      </p>
-    </div>
+      <Field label="Notas (opcional · Cmd/Ctrl+Enter para guardar)">
+        <textarea
+          className={`${inputCls} min-h-24 resize-y`}
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          placeholder="Recursos, criterios personales, recordatorios..."
+        />
+      </Field>
+
+      <Field label="Link (opcional)">
+        <input
+          className={inputCls}
+          value={url}
+          onChange={(event) => setUrl(event.target.value)}
+          placeholder="https://..."
+        />
+      </Field>
+    </FormCard>
   );
 }

@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import Button from "@/components/Button";
+import { Page } from "@/components/PageHeader";
+import ThemeModeSelector from "@/features/theme/components/ThemeModeSelector";
+import { useTheme } from "@/features/theme/ThemeContext";
 import type { HabitsStore } from "@/features/habits/hooks/useHabits";
 import { isFullBackup, type BackupFile } from "@/features/backup/backupTypes";
 import { isTauri } from "@/lib/platform";
@@ -36,7 +39,7 @@ function describeBackup(backup: BackupFile): string {
     parts.push(
       plural(backup.notes.length, "nota", "notas"),
       plural(backup.todo_items.length, "tarea", "tareas"),
-      `${plural(backup.roadmaps.length, "roadmap", "roadmaps")} (${plural(
+      `${plural(backup.roadmaps.length, "lista", "listas")} (${plural(
         backup.roadmap_items.length,
         "item",
         "items",
@@ -168,6 +171,7 @@ export default function SettingsView({ store }: SettingsViewProps) {
   const [pendingBackup, setPendingBackup] = useState<BackupFile | null>(null);
   const [busy, setBusy] = useState(false);
   const [copiesKey, setCopiesKey] = useState(0);
+  const { preference, setPreference } = useTheme();
 
   const handleExport = async () => {
     try {
@@ -233,19 +237,23 @@ export default function SettingsView({ store }: SettingsViewProps) {
   };
 
   return (
-    <section className="mx-auto max-w-2xl">
-      <div>
-        <h2 className="text-lg font-semibold">Configuración</h2>
-        <p className="text-sm text-text-muted">
-          Exporta o restaura tus datos locales de Aurhabits.
+    <Page title="Configuración" width="2xl">
+      <div className="rounded-xl border border-border bg-surface p-5">
+        <h3 className="font-medium">Apariencia</h3>
+        <p className="mt-1 text-sm text-text-muted">
+          Automático sigue la hora del día (mañana, tarde y noche). También
+          puedes fijar un tema; se recuerda al reabrir la app.
         </p>
+        <div className="mt-4">
+          <ThemeModeSelector value={preference} onChange={setPreference} />
+        </div>
       </div>
 
-      <div className="mt-6 rounded-xl border border-border bg-surface p-5">
+      <div className="mt-4 rounded-xl border border-border bg-surface p-5">
         <h3 className="font-medium">Backup local</h3>
         <p className="mt-1 text-sm text-text-muted">
           El archivo JSON incluye todos tus datos: hábitos y sus registros,
-          notas, tareas y roadmaps.
+          notas, tareas y listas.
         </p>
 
         <div className="mt-4 flex flex-wrap gap-2">
@@ -271,8 +279,8 @@ export default function SettingsView({ store }: SettingsViewProps) {
           <h3 className="font-medium">Confirmar importación</h3>
           <p className="mt-2 text-sm text-text-muted">
             {isFullBackup(pendingBackup)
-              ? "Esta acción reemplazará todos tus datos actuales (hábitos, registros, notas, tareas y roadmaps) por los del backup seleccionado."
-              : "Este backup es de una versión anterior y solo contiene hábitos y registros. Se reemplazarán esos datos; tus notas, tareas y roadmaps actuales no se tocarán."}
+              ? "Esta acción reemplazará todos tus datos actuales (hábitos, registros, notas, tareas y listas) por los del backup seleccionado."
+              : "Este backup es de una versión anterior y solo contiene hábitos y registros. Se reemplazarán esos datos; tus notas, tareas y listas actuales no se tocarán."}
           </p>
           <p className="mt-3 text-sm text-text-muted">
             Backup: {describeBackup(pendingBackup)} · exportado el{" "}
@@ -293,6 +301,6 @@ export default function SettingsView({ store }: SettingsViewProps) {
           </div>
         </div>
       )}
-    </section>
+    </Page>
   );
 }

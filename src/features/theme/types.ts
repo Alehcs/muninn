@@ -16,4 +16,7 @@ export interface ThemeTokens {
   accentForeground: string;
   accentHover: string;
   success: string;
+  /** Acciones destructivas y errores. */
+  danger: string;
+  dangerForeground: string;
 }

@@ -10,7 +10,7 @@ interface HabitManagementCardProps {
 }
 
 const TYPE_LABELS: Record<HabitType, string> = {
-  check: "Check",
+  check: "Una vez",
   count: "Conteo",
   duration: "Duración",
 };

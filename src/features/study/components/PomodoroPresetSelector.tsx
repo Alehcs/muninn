@@ -54,6 +54,8 @@ export default function PomodoroPresetSelector({
                   ? "border-accent ring-2 ring-accent/30"
                   : "border-border hover:border-accent hover:bg-surface-hover",
               )}
+              type="button"
+              aria-pressed={selected}
               disabled={disabled}
               onClick={() => onSelectPreset(preset, preset.id)}
             >
@@ -80,6 +82,7 @@ export default function PomodoroPresetSelector({
       >
         <button
           className="text-left text-sm font-semibold"
+          type="button"
           disabled={disabled}
           onClick={onSelectCustom}
         >

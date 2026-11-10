@@ -15,7 +15,7 @@ interface PomodoroPanelProps {
 }
 
 function getSessionCopy(timer: PomodoroTimer): string {
-  if (timer.status === "finished") return "Sesion completa. Buen trabajo.";
+  if (timer.status === "finished") return "Sesión completa. Buen trabajo.";
   if (timer.status === "paused") return "Pausa sostenida, sin perder el hilo.";
   if (timer.phase === "break" && timer.status === "running") {
     return "Suelta los hombros y vuelve con aire fresco.";
@@ -46,7 +46,7 @@ export default function PomodoroPanel({
   return (
     <section
       className={cn(
-        "relative overflow-hidden rounded-xl border bg-surface p-6 shadow-sm",
+        "rounded-xl border bg-surface p-6",
         timer.status === "finished"
           ? "border-success/60"
           : timer.phase === "break" && !idle
@@ -54,16 +54,7 @@ export default function PomodoroPanel({
             : "border-accent/50",
       )}
     >
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-        <span className="absolute right-8 top-8 h-16 w-16 rounded-full bg-accent/10" />
-        <span className="absolute bottom-12 left-10 h-10 w-10 rounded-full bg-success/10" />
-        <span className="absolute left-8 top-10 h-10 w-4 rotate-45 rounded-full bg-success/20" />
-        <span className="absolute right-20 bottom-20 h-8 w-3 -rotate-45 rounded-full bg-accent/20" />
-        <span className="absolute left-1/2 top-6 h-2 w-2 rounded-full bg-text-muted/30" />
-        <span className="absolute right-1/3 bottom-8 h-2 w-2 rounded-full bg-text-muted/30" />
-      </div>
-
-      <div className="relative text-center">
+      <div className="text-center">
         <div className="mx-auto flex w-fit items-center gap-2 rounded-full border border-border bg-bg px-3 py-1 text-xs font-medium text-text-muted">
           <span
             className={cn(

@@ -1,5 +1,8 @@
 import { useState } from "react";
 import Button from "@/components/Button";
+import { Page, PageStrip } from "@/components/PageHeader";
+import { inputCls } from "@/components/formStyles";
+import { confirm } from "@/lib/confirm";
 import RoadmapForm from "./RoadmapForm";
 import RoadmapSection from "./RoadmapSection";
 import RoadmapSectionForm from "./RoadmapSectionForm";
@@ -55,28 +58,39 @@ export default function RoadmapView() {
     closeForms();
   };
 
-  const handleDeleteRoadmap = (item: Roadmap) => {
-    const ok = window.confirm(
-      `Eliminar el roadmap "${item.title}"? Esto también eliminará sus secciones e items.`,
-    );
+  const handleDeleteRoadmap = async (item: Roadmap) => {
+    const ok = await confirm({
+      title: "Eliminar lista",
+      message: `¿Eliminar la lista "${item.title}"? Esto también eliminará sus secciones e items.`,
+      confirmLabel: "Eliminar",
+      destructive: true,
+    });
     if (!ok) return;
 
     closeForms();
     void roadmap.deleteRoadmap(item.id);
   };
 
-  const handleDeleteSection = (section: RoadmapSectionType) => {
-    const ok = window.confirm(
-      `Eliminar la sección "${section.name}"? Esto también eliminará sus items.`,
-    );
+  const handleDeleteSection = async (section: RoadmapSectionType) => {
+    const ok = await confirm({
+      title: "Eliminar sección",
+      message: `¿Eliminar la sección "${section.name}"? Esto también eliminará sus items.`,
+      confirmLabel: "Eliminar",
+      destructive: true,
+    });
     if (!ok) return;
 
     closeForms();
     void roadmap.deleteSection(section.id);
   };
 
-  const handleDeleteItem = (item: RoadmapItem) => {
-    const ok = window.confirm(`Eliminar el item "${item.title}"?`);
+  const handleDeleteItem = async (item: RoadmapItem) => {
+    const ok = await confirm({
+      title: "Eliminar item",
+      message: `¿Eliminar el item "${item.title}"?`,
+      confirmLabel: "Eliminar",
+      destructive: true,
+    });
     if (!ok) return;
 
     closeForms();
@@ -85,17 +99,17 @@ export default function RoadmapView() {
 
   if (roadmap.status === "loading") {
     return (
-      <section className="mx-auto max-w-5xl">
-        <p className="text-sm text-text-muted">Cargando roadmap…</p>
-      </section>
+      <Page title="Listas" width="5xl">
+        <p className="text-sm text-text-muted">Cargando listas…</p>
+      </Page>
     );
   }
 
   if (roadmap.status === "error") {
     return (
-      <section className="mx-auto max-w-5xl">
+      <Page title="Listas" width="5xl">
         <div className="rounded-xl border border-border bg-surface p-5">
-          <h2 className="font-semibold">No se pudo cargar el roadmap</h2>
+          <h2 className="font-semibold">No se pudieron cargar las listas</h2>
           <p className="mt-1 text-sm text-text-muted">
             Cierra y vuelve a abrir la app. Tus datos siguen siendo locales.
           </p>
@@ -107,101 +121,91 @@ export default function RoadmapView() {
             Reintentar
           </Button>
         </div>
-      </section>
+      </Page>
     );
   }
 
-  return (
-    <section className="mx-auto max-w-5xl">
-      <div className="rounded-xl border border-border bg-surface p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-text-muted">Roadmap</p>
-            <h2 className="mt-1 break-words text-2xl font-semibold">
-              {roadmap.selectedRoadmap?.title ?? "Tus roadmaps"}
-            </h2>
-            {roadmap.selectedRoadmap?.description && (
-              <p className="mt-2 max-w-2xl whitespace-pre-wrap break-words text-sm text-text-muted">
-                {roadmap.selectedRoadmap.description}
-              </p>
-            )}
-          </div>
+  const selected = roadmap.selectedRoadmap;
 
-          <div className="flex flex-wrap gap-2">
+  return (
+    <Page
+      title="Listas"
+      width="5xl"
+      primaryAction={{
+        label: "Nueva lista",
+        onClick: () => {
+          closeForms();
+          setRoadmapForm({ open: true });
+        },
+        hidden: roadmapForm.open,
+      }}
+      actions={
+        selected && (
+          <>
             <Button
+              variant="quiet"
               onClick={() => {
                 closeForms();
-                setRoadmapForm({ open: true });
+                setRoadmapForm({ open: true, roadmap: selected });
               }}
             >
-              Nuevo roadmap
+              Editar lista
             </Button>
-            {roadmap.selectedRoadmap && (
-              <>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    closeForms();
-                    setRoadmapForm({
-                      open: true,
-                      roadmap: roadmap.selectedRoadmap ?? undefined,
-                    });
-                  }}
-                >
-                  Editar roadmap
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    if (roadmap.selectedRoadmap) {
-                      handleDeleteRoadmap(roadmap.selectedRoadmap);
-                    }
-                  }}
-                >
-                  Eliminar roadmap
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-text-muted">
-              Lista
-            </label>
-            <select
-              className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-accent disabled:opacity-60"
-              value={roadmap.selectedRoadmapId ?? ""}
-              disabled={roadmap.roadmaps.length === 0}
-              onChange={(event) => void roadmap.selectRoadmap(event.target.value)}
+            <Button
+              variant="quiet"
+              onClick={() => void handleDeleteRoadmap(selected)}
             >
-              {roadmap.roadmaps.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.title}
-                </option>
-              ))}
-            </select>
-          </div>
+              Eliminar lista
+            </Button>
+          </>
+        )
+      }
+    >
+      <PageStrip>
+        <label className="flex min-w-0 items-center gap-2 text-xs font-medium text-text-muted">
+          Lista
+          <select
+            className={`${inputCls} w-auto min-w-48`}
+            value={roadmap.selectedRoadmapId ?? ""}
+            disabled={roadmap.roadmaps.length === 0}
+            onChange={(event) => void roadmap.selectRoadmap(event.target.value)}
+          >
+            {roadmap.roadmaps.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.title}
+              </option>
+            ))}
+          </select>
+        </label>
 
-          <div>
-            <p className="text-3xl font-semibold">{roadmap.progress.percent}%</p>
-            <p className="mt-1 text-sm text-text-muted">
-              {roadmap.progress.completed}/{roadmap.progress.total} items
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-4 h-3 overflow-hidden rounded-full bg-bg">
+        <p className="text-sm text-text-muted">
+          <span className="text-lg font-semibold text-text">
+            {roadmap.progress.percent}%
+          </span>{" "}
+          · {roadmap.progress.completed}/{roadmap.progress.total} items
+        </p>
+        <div
+          className="h-2 min-w-32 flex-1 overflow-hidden rounded-full bg-surface-hover"
+          role="progressbar"
+          aria-label="Progreso de la lista"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={roadmap.progress.percent}
+        >
           <div
             className="h-full rounded-full bg-success"
             style={{ width: `${roadmap.progress.percent}%` }}
           />
         </div>
-      </div>
+        {selected?.description && (
+          <p className="w-full whitespace-pre-wrap break-words text-sm text-text-muted">
+            {selected.description}
+          </p>
+        )}
+      </PageStrip>
 
       {roadmapForm.open && (
-        <div className="mt-5">
+        <div className="mb-5">
           <RoadmapForm
             initial={roadmapForm.roadmap}
             onSubmit={handleRoadmapSubmit}
@@ -211,7 +215,7 @@ export default function RoadmapView() {
       )}
 
       {sectionForm.open && (
-        <div className="mt-5">
+        <div className="mb-5">
           <RoadmapSectionForm
             initial={sectionForm.section}
             onSubmit={handleSectionSubmit}
@@ -221,7 +225,7 @@ export default function RoadmapView() {
       )}
 
       {roadmap.selectedRoadmap && (
-        <div className="mt-5 flex flex-wrap gap-2">
+        <div className="mb-5 flex flex-wrap gap-2">
           <Button
             variant="ghost"
             onClick={() => {
@@ -235,24 +239,24 @@ export default function RoadmapView() {
       )}
 
       {roadmap.selectedRoadmap === null && (
-        <div className="mt-6 rounded-xl border border-border bg-surface p-5">
-          <h3 className="font-medium">No hay roadmaps</h3>
+        <div className="mb-5 rounded-xl border border-border bg-surface p-5">
+          <h3 className="font-medium">No hay listas</h3>
           <p className="mt-1 text-sm text-text-muted">
-            Crea uno nuevo para empezar desde cero.
+            Crea una nueva para empezar desde cero.
           </p>
         </div>
       )}
 
       {roadmap.selectedRoadmap && roadmap.sections.length === 0 && (
-        <div className="mt-6 rounded-xl border border-border bg-surface p-5">
+        <div className="mb-5 rounded-xl border border-border bg-surface p-5">
           <h3 className="font-medium">Sin secciones todavía</h3>
           <p className="mt-1 text-sm text-text-muted">
-            Agrega una sección para organizar los items de este roadmap.
+            Agrega una sección para organizar los items de esta lista.
           </p>
         </div>
       )}
 
-      <div className="mt-6 flex flex-col gap-5">
+      <div className="flex flex-col gap-5">
         {roadmap.sections.map((group) => (
           <RoadmapSection
             key={group.section.id}
@@ -260,13 +264,13 @@ export default function RoadmapView() {
             sectionOptions={roadmap.roadmapSections}
             onCreateItem={(values) => void roadmap.createItem(values)}
             onUpdateItem={(id, values) => void roadmap.updateItem(id, values)}
-            onDeleteItem={handleDeleteItem}
+            onDeleteItem={(item) => void handleDeleteItem(item)}
             onToggleItem={(id) => void roadmap.toggleCompleted(id)}
             onUpdateSection={(id, values) => void roadmap.updateSection(id, values)}
-            onDeleteSection={handleDeleteSection}
+            onDeleteSection={(section) => void handleDeleteSection(section)}
           />
         ))}
       </div>
-    </section>
+    </Page>
   );
 }

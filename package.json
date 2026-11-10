@@ -17,6 +17,7 @@
     "@tauri-apps/plugin-fs": "^2.5.1",
     "@tauri-apps/plugin-opener": "^2.5.4",
     "@tauri-apps/plugin-sql": "^2.4.0",
+    "lucide-react": "^1.71.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

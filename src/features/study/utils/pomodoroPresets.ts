@@ -16,7 +16,7 @@ export const POMODORO_PRESETS: PomodoroPreset[] = [
   {
     id: "classic-25",
     label: "25 + 5",
-    description: "Ritmo clasico para empezar suave.",
+    description: "Ritmo clásico para empezar suave.",
     focusMinutes: 25,
     breakMinutes: 5,
     cycles: DEFAULT_POMODORO_CYCLES,
@@ -32,7 +32,7 @@ export const POMODORO_PRESETS: PomodoroPreset[] = [
   {
     id: "steady-50",
     label: "50 + 10",
-    description: "Para sesiones de lectura o practica.",
+    description: "Para sesiones de lectura o práctica.",
     focusMinutes: 50,
     breakMinutes: 10,
     cycles: DEFAULT_POMODORO_CYCLES,

@@ -2,7 +2,7 @@ import { dismiss, useToasts, type ToastKind } from "@/lib/notify";
 import { cn } from "@/utils/cn";
 
 const ACCENT: Record<ToastKind, string> = {
-  error: "border-l-red-400",
+  error: "border-l-danger",
   success: "border-l-success",
   info: "border-l-accent",
 };

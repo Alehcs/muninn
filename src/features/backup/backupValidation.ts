@@ -162,6 +162,13 @@ function matchesKind(value: unknown, kind: FieldKind): boolean {
   }
 }
 
+/** Nombre legible de las tablas cuyo nombre técnico no se muestra al usuario. */
+const TABLE_LABELS: Record<string, string> = {
+  roadmaps: "listas",
+  roadmap_sections: "secciones de listas",
+  roadmap_items: "items de listas",
+};
+
 /**
  * Valida una lista de filas contra su especificación y comprueba que la
  * clave primaria no se repita. Devuelve solo las columnas conocidas.
@@ -172,21 +179,22 @@ function validateRows<Row>(
   spec: RowSpec<Row>,
   primaryKey: keyof Row & string,
 ): Row[] {
-  if (!Array.isArray(value)) throw new Error(`Falta la lista ${table}.`);
+  const name = TABLE_LABELS[table] ?? table;
+  if (!Array.isArray(value)) throw new Error(`Falta la sección ${name} del backup.`);
 
   const columns = Object.keys(spec) as (keyof Row & string)[];
   const seen = new Set<unknown>();
 
   return value.map((item, index) => {
     if (!isObject(item)) {
-      throw new Error(`La fila ${index + 1} de ${table} no es válida.`);
+      throw new Error(`La fila ${index + 1} de ${name} no es válida.`);
     }
 
     const row: Record<string, unknown> = {};
     for (const column of columns) {
       if (!matchesKind(item[column], spec[column])) {
         throw new Error(
-          `La fila ${index + 1} de ${table} tiene "${column}" inválido.`,
+          `La fila ${index + 1} de ${name} tiene "${column}" inválido.`,
         );
       }
       row[column] = item[column];
@@ -194,7 +202,7 @@ function validateRows<Row>(
 
     const key = row[primaryKey];
     if (seen.has(key)) {
-      throw new Error(`"${String(key)}" está duplicado en ${table}.`);
+      throw new Error(`"${String(key)}" está duplicado en ${name}.`);
     }
     seen.add(key);
 

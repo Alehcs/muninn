@@ -1,44 +1,45 @@
-import { useState } from "react";
-import Button from "@/components/Button";
 import HabitForm from "@/features/habits/components/HabitForm";
 import HabitManagementCard from "@/features/habits/components/HabitManagementCard";
 import type { HabitsStore } from "@/features/habits/hooks/useHabits";
 import type { Habit } from "@/features/habits/types";
+import { confirm } from "@/lib/confirm";
+
+/** Estado del formulario: cerrado, o abierto para crear (sin habit) o editar. */
+export type HabitFormState = { open: false } | { open: true; habit?: Habit };
 
 interface HabitsViewProps {
   store: HabitsStore;
+  /** El estado del formulario vive en la vista "Hábitos" (cabecera + atajo). */
+  form: HabitFormState;
+  onFormChange: (form: HabitFormState) => void;
 }
 
-/** Estado del formulario: cerrado, o abierto para crear (sin habit) o editar. */
-type FormState = { open: false } | { open: true; habit?: Habit };
-
-export default function HabitsView({ store }: HabitsViewProps) {
+/** Pestaña "Gestión" de Hábitos: alta, edición, pausa y borrado. */
+export default function HabitsView({
+  store,
+  form,
+  onFormChange,
+}: HabitsViewProps) {
   const { habits, createHabit, updateHabit, toggleActive, deleteHabit } = store;
-  const [form, setForm] = useState<FormState>({ open: false });
 
-  const handleDelete = (habit: Habit) => {
-    const ok = window.confirm(
-      `Eliminar el hábito "${habit.name}"? Esto también eliminará todo su historial. Si solo quieres dejar de verlo en "Hoy", usa Pausar.`,
-    );
+  const handleDelete = async (habit: Habit) => {
+    const ok = await confirm({
+      title: "Eliminar hábito",
+      message: `¿Eliminar el hábito "${habit.name}"? Esto también eliminará todo su historial. Si solo quieres dejar de verlo en "Hoy", usa Pausar.`,
+      confirmLabel: "Eliminar",
+      destructive: true,
+    });
     if (!ok) return;
 
-    setForm({ open: false });
+    onFormChange({ open: false });
     deleteHabit(habit.id);
   };
 
   return (
-    <section className="mx-auto max-w-2xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Gestión de hábitos</h2>
-          <p className="text-sm text-text-muted">
-            Los hábitos activos aparecen en la vista "Hoy".
-          </p>
-        </div>
-        {!form.open && (
-          <Button onClick={() => setForm({ open: true })}>Nuevo hábito</Button>
-        )}
-      </div>
+    <section>
+      <p className="text-sm text-text-muted">
+        Los hábitos activos aparecen en la vista "Hoy".
+      </p>
 
       {form.open && (
         <div className="mt-4">
@@ -54,21 +55,21 @@ export default function HabitsView({ store }: HabitsViewProps) {
               } else {
                 createHabit(values);
               }
-              setForm({ open: false });
+              onFormChange({ open: false });
             }}
-            onCancel={() => setForm({ open: false })}
+            onCancel={() => onFormChange({ open: false })}
           />
         </div>
       )}
 
-      <div className="mt-6 flex flex-col gap-3">
+      <div className="mt-4 flex flex-col gap-3">
         {habits.map((habit) => (
           <HabitManagementCard
             key={habit.id}
             habit={habit}
-            onEdit={() => setForm({ open: true, habit })}
+            onEdit={() => onFormChange({ open: true, habit })}
             onToggleActive={() => toggleActive(habit.id)}
-            onDelete={() => handleDelete(habit)}
+            onDelete={() => void handleDelete(habit)}
           />
         ))}
       </div>

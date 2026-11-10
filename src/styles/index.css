@@ -1,7 +1,8 @@
 @import "tailwindcss";
 
-/* Tema visual inicial hardcodeado.
-   Estos tokens generan utilidades de Tailwind: bg-bg, bg-surface, text-text-muted, etc. */
+/* Valores iniciales de los tokens. El tema real (mañana/tarde/noche) los
+   sobrescribe en <html> desde src/features/theme/useTimeTheme.ts.
+   Generan utilidades de Tailwind: bg-bg, bg-surface, text-text-muted, etc. */
 @theme {
   --color-bg: #0f1115;
   --color-surface: #181b22;
@@ -13,6 +14,10 @@
   --color-accent-foreground: #ffffff;
   --color-accent-hover: #6b4ce6;
   --color-success: #3ecf8e;
+  --color-danger: #f08a80;
+  --color-danger-foreground: #121830;
+  /* Hovers rápidos (Tailwind usa 150 ms por defecto). */
+  --default-transition-duration: 130ms;
 }
 
 html,
@@ -29,12 +34,46 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Transición suave al cambiar de tema. Las utilidades transition-* de
-   Tailwind tienen mayor especificidad y siguen mandando donde se aplican. */
-*,
-::before,
-::after {
-  transition-property: background-color, border-color, color;
+/* Transición suave SOLO mientras cambia el tema: useTimeTheme añade la clase
+   a <html> durante ~400 ms. Va sin capa a propósito (gana a las utilidades de
+   Tailwind), por eso no puede estar siempre activa. */
+:root.theme-transition,
+:root.theme-transition *,
+:root.theme-transition ::before,
+:root.theme-transition ::after {
+  transition-property: background-color, border-color, color, fill, stroke;
   transition-duration: 0.4s;
   transition-timing-function: ease;
+}
+
+/* Foco visible con teclado, coherente en toda la app. Sin capa para ganar a
+   `outline-none` de las utilidades. */
+:where(
+    button,
+    a[href],
+    input,
+    select,
+    textarea,
+    summary,
+    [role="tab"],
+    [tabindex]:not([tabindex="-1"])
+  ):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+:where(input:not([type="checkbox"], [type="radio"]), select, textarea):focus-visible {
+  outline-offset: 0;
+}
+
+/* Respeta la preferencia de menos movimiento. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

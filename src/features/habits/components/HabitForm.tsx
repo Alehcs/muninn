@@ -1,6 +1,6 @@
-import { inputCls, labelCls } from "@/components/formStyles";
+import FormCard, { Field } from "@/components/FormCard";
+import { inputCls } from "@/components/formStyles";
 import { useState } from "react";
-import Button from "@/components/Button";
 import type {
   Habit,
   HabitCategory,
@@ -17,7 +17,7 @@ interface HabitFormProps {
 }
 
 const TYPE_OPTIONS: { value: HabitType; label: string }[] = [
-  { value: "check", label: "Check (completar)" },
+  { value: "check", label: "Una vez (completar)" },
   { value: "count", label: "Conteo (repeticiones)" },
   { value: "duration", label: "Duración (minutos)" },
 ];
@@ -71,100 +71,85 @@ export default function HabitForm({
   };
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-5">
-      <h3 className="mb-4 font-medium">
-        {isEdit ? "Editar hábito" : "Nuevo hábito"}
-      </h3>
+    <FormCard
+      title={isEdit ? "Editar hábito" : "Nuevo hábito"}
+      submitLabel={isEdit ? "Guardar cambios" : "Crear hábito"}
+      valid={valid}
+      onSubmit={handleSubmit}
+      onCancel={onCancel}
+      note={
+        isEdit
+          ? "El tipo y la unidad no se pueden cambiar tras crear el hábito."
+          : undefined
+      }
+    >
+      <Field label="Nombre">
+        <input
+          className={inputCls}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="Ej. Beber agua"
+        />
+      </Field>
 
-      <div className="flex flex-col gap-3">
-        <div>
-          <label className={labelCls}>Nombre</label>
+      <div className="flex gap-3">
+        <Field label="Tipo" className="flex-1">
+          <select
+            className={inputCls}
+            value={type}
+            disabled={isEdit}
+            onChange={(event) => setType(event.target.value as HabitType)}
+          >
+            {TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Objetivo diario" className="w-32">
           <input
-            className={`${inputCls} disabled:opacity-60`}
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="Ej. Beber agua"
+            type="number"
+            min="1"
+            className={inputCls}
+            value={target}
+            onChange={(event) => setTarget(event.target.value)}
           />
-        </div>
-
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <label className={labelCls}>Tipo</label>
-            <select
-              className={`${inputCls} disabled:opacity-60`}
-              value={type}
-              disabled={isEdit}
-              onChange={(event) => setType(event.target.value as HabitType)}
-            >
-              {TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="w-32">
-            <label className={labelCls}>Objetivo diario</label>
-            <input
-              type="number"
-              min="1"
-              className={`${inputCls} disabled:opacity-60`}
-              value={target}
-              onChange={(event) => setTarget(event.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <label className={labelCls}>Unidad</label>
-            <select
-              className={`${inputCls} disabled:opacity-60`}
-              value={unit}
-              disabled={isEdit}
-              onChange={(event) => setUnit(event.target.value as HabitUnit)}
-            >
-              {UNIT_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex-1">
-            <label className={labelCls}>Categoría (opcional)</label>
-            <select
-              className={`${inputCls} disabled:opacity-60`}
-              value={category}
-              onChange={(event) =>
-                setCategory(event.target.value as HabitCategory | "")
-              }
-            >
-              <option value="">Sin categoría</option>
-              {CATEGORY_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+        </Field>
       </div>
 
-      <div className="mt-4 flex gap-2">
-        <Button variant="primary" onClick={handleSubmit} disabled={!valid}>
-          {isEdit ? "Guardar cambios" : "Crear hábito"}
-        </Button>
-        <Button variant="ghost" onClick={onCancel}>
-          Cancelar
-        </Button>
+      <div className="flex gap-3">
+        <Field label="Unidad" className="flex-1">
+          <select
+            className={inputCls}
+            value={unit}
+            disabled={isEdit}
+            onChange={(event) => setUnit(event.target.value as HabitUnit)}
+          >
+            {UNIT_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Categoría (opcional)" className="flex-1">
+          <select
+            className={inputCls}
+            value={category}
+            onChange={(event) =>
+              setCategory(event.target.value as HabitCategory | "")
+            }
+          >
+            <option value="">Sin categoría</option>
+            {CATEGORY_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </Field>
       </div>
-
-      {isEdit && (
-        <p className="mt-3 text-xs text-text-muted">
-          El tipo y la unidad no se pueden cambiar tras crear el hábito.
-        </p>
-      )}
-    </div>
+    </FormCard>
   );
 }

@@ -1,7 +1,7 @@
-import { inputCls, labelCls } from "@/components/formStyles";
+import FormCard, { Field } from "@/components/FormCard";
+import { inputCls } from "@/components/formStyles";
 import { optional } from "@/lib/text";
 import { useMemo, useState } from "react";
-import Button from "@/components/Button";
 import type { TodoInput, TodoItem } from "../types";
 
 interface TodoItemFormProps {
@@ -43,54 +43,44 @@ export default function TodoItemForm({
   };
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-5">
-      <h3 className="font-medium">{isEdit ? "Editar tarea" : "Nueva tarea"}</h3>
-
-      <div className="mt-4 flex flex-col gap-3">
-        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_140px]">
-          <div>
-            <label className={labelCls}>Título</label>
-            <input
-              className={inputCls}
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="Ej. Revisar migración de Roadmap"
-            />
-          </div>
-
-          <div>
-            <label className={labelCls}>Orden</label>
-            <input
-              className={inputCls}
-              inputMode="numeric"
-              min="1"
-              type="number"
-              value={orderIndex}
-              onChange={(event) => setOrderIndex(event.target.value)}
-              placeholder="Auto"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className={labelCls}>Notas (opcional)</label>
-          <textarea
-            className={`${inputCls} min-h-24 resize-y`}
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            placeholder="Contexto corto, pasos o recordatorios"
+    <FormCard
+      title={isEdit ? "Editar tarea" : "Nueva tarea"}
+      submitLabel={isEdit ? "Guardar cambios" : "Crear tarea"}
+      valid={valid}
+      onSubmit={handleSubmit}
+      onCancel={onCancel}
+    >
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_140px]">
+        <Field label="Título">
+          <input
+            className={inputCls}
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="Ej. Revisar la migración de la lista"
           />
-        </div>
+        </Field>
+
+        <Field label="Orden">
+          <input
+            className={inputCls}
+            inputMode="numeric"
+            min="1"
+            type="number"
+            value={orderIndex}
+            onChange={(event) => setOrderIndex(event.target.value)}
+            placeholder="Auto"
+          />
+        </Field>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button onClick={handleSubmit} disabled={!valid}>
-          {isEdit ? "Guardar cambios" : "Crear tarea"}
-        </Button>
-        <Button variant="ghost" onClick={onCancel}>
-          Cancelar
-        </Button>
-      </div>
-    </div>
+      <Field label="Notas (opcional · Cmd/Ctrl+Enter para guardar)">
+        <textarea
+          className={`${inputCls} min-h-24 resize-y`}
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          placeholder="Contexto corto, pasos o recordatorios"
+        />
+      </Field>
+    </FormCard>
   );
 }

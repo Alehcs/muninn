@@ -2,7 +2,8 @@ import DailyProgressSummary from "@/features/habits/components/DailyProgressSumm
 import HabitCard from "@/features/habits/components/HabitCard";
 import type { HabitsStore } from "@/features/habits/hooks/useHabits";
 import HabitTimerPanel from "@/features/timer/components/HabitTimerPanel";
-import { useHabitTimer } from "@/features/timer/hooks/useHabitTimer";
+import { useHabitTimerContext } from "@/features/timer/HabitTimerContext";
+import { Page } from "@/components/PageHeader";
 
 interface TodayViewProps {
   store: HabitsStore;
@@ -11,10 +12,19 @@ interface TodayViewProps {
 export default function TodayView({ store }: TodayViewProps) {
   const { todayHabits, daily, toggleCheck, increment, addMinutes, reset } =
     store;
-  const timer = useHabitTimer({ onComplete: addMinutes });
+  const timer = useHabitTimerContext();
+  const today = new Date().toLocaleDateString("es-ES", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
 
   return (
-    <section className="mx-auto max-w-2xl">
+    <Page
+      title="Hoy"
+      subtitle={today.charAt(0).toUpperCase() + today.slice(1)}
+      width="2xl"
+    >
       <DailyProgressSummary
         percent={daily.percent}
         completed={daily.completed}
@@ -58,6 +68,6 @@ export default function TodayView({ store }: TodayViewProps) {
           ))}
         </div>
       )}
-    </section>
+    </Page>
   );
 }

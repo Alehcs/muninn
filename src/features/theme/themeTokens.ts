@@ -14,6 +14,8 @@ export const themeTokens: Record<ThemeMode, ThemeTokens> = {
     accentForeground: "#ffffff",
     accentHover: "#286650",
     success: "#287456",
+    danger: "#b3382c",
+    dangerForeground: "#ffffff",
   },
   // Tarde cálida: naranja suave, durazno, dorado.
   afternoon: {
@@ -27,6 +29,8 @@ export const themeTokens: Record<ThemeMode, ThemeTokens> = {
     accentForeground: "#ffffff",
     accentHover: "#8f4c12",
     success: "#357a3d",
+    danger: "#b3321f",
+    dangerForeground: "#ffffff",
   },
   // Noche calmada: azul profundo, violeta suave, blanco cálido.
   night: {
@@ -40,5 +44,7 @@ export const themeTokens: Record<ThemeMode, ThemeTokens> = {
     accentForeground: "#121830",
     accentHover: "#b8abff",
     success: "#54bf9c",
+    danger: "#f08a80",
+    dangerForeground: "#121830",
   },
 };

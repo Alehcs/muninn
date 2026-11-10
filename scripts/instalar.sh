@@ -49,7 +49,14 @@ if [ -f "${DATABASE}" ]; then
   if command -v sqlite3 >/dev/null 2>&1 && sqlite3 "${DATABASE}" ".backup '${COPY}'" 2>/dev/null; then
     :
   else
+    # Sin sqlite3: copia directa. Si quedaron archivos -wal/-shm (la base usa
+    # modo WAL) se copian también, porque pueden contener lo último escrito.
     cp -p "${DATABASE}" "${COPY}"
+    for suffix in -wal -shm; do
+      if [ -f "${DATABASE}${suffix}" ]; then
+        cp -p "${DATABASE}${suffix}" "${COPY}${suffix}"
+      fi
+    done
   fi
   echo "    Copia: ${COPY}"
 else

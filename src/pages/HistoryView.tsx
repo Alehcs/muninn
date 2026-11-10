@@ -11,7 +11,7 @@ interface HistoryViewProps {
 }
 
 const inputCls =
-  "rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text outline-none focus:border-accent";
+  "rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text focus:border-accent";
 
 export default function HistoryView({ store }: HistoryViewProps) {
   const [selectedDate, setSelectedDate] = useState(() => getLocalDate());
@@ -32,15 +32,9 @@ export default function HistoryView({ store }: HistoryViewProps) {
   );
 
   return (
-    <section className="mx-auto max-w-2xl">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold">Historial por fecha</h2>
-          <p className="text-sm text-text-muted">
-            Consulta el progreso guardado para cualquier día.
-          </p>
-        </div>
-        <label className="flex flex-col gap-1 text-xs font-medium text-text-muted">
+    <section>
+      <div className="flex justify-end">
+        <label className="flex items-center gap-2 text-xs font-medium text-text-muted">
           Fecha
           <input
             className={inputCls}

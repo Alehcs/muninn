@@ -1,7 +1,7 @@
-import { inputCls, labelCls } from "@/components/formStyles";
+import FormCard, { Field } from "@/components/FormCard";
+import { inputCls } from "@/components/formStyles";
 import { optional } from "@/lib/text";
 import { useState } from "react";
-import Button from "@/components/Button";
 import type { Note, NoteInput } from "../types";
 
 interface NoteFormProps {
@@ -31,61 +31,51 @@ export default function NoteForm({ initial, onSubmit, onCancel }: NoteFormProps)
   };
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-5">
-      <h3 className="font-medium">{isEdit ? "Editar nota" : "Nueva nota"}</h3>
-
-      <div className="mt-4 flex flex-col gap-3">
-        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
-          <div>
-            <label className={labelCls}>Título</label>
-            <input
-              className={inputCls}
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="Ej. Ideas para backend"
-            />
-          </div>
-
-          <div>
-            <label className={labelCls}>Categoría</label>
-            <input
-              className={inputCls}
-              value={category}
-              onChange={(event) => setCategory(event.target.value)}
-              placeholder="Lista, idea, recurso..."
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className={labelCls}>Contenido</label>
-          <textarea
-            className={`${inputCls} min-h-56 resize-y leading-6`}
-            value={content}
-            onChange={(event) => setContent(event.target.value)}
-            placeholder="- Item libre&#10;- Link importante&#10;- Idea suelta"
-          />
-        </div>
-
-        <label className="flex items-center gap-2 text-sm text-text-muted">
+    <FormCard
+      title={isEdit ? "Editar nota" : "Nueva nota"}
+      submitLabel={isEdit ? "Guardar cambios" : "Crear nota"}
+      valid={valid}
+      onSubmit={handleSubmit}
+      onCancel={onCancel}
+    >
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
+        <Field label="Título">
           <input
-            type="checkbox"
-            checked={pinned}
-            onChange={(event) => setPinned(event.target.checked)}
-            className="h-4 w-4 accent-accent"
+            className={inputCls}
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="Ej. Ideas para backend"
           />
-          Fijar arriba
-        </label>
+        </Field>
+
+        <Field label="Categoría">
+          <input
+            className={inputCls}
+            value={category}
+            onChange={(event) => setCategory(event.target.value)}
+            placeholder="Lista, idea, recurso..."
+          />
+        </Field>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button onClick={handleSubmit} disabled={!valid}>
-          {isEdit ? "Guardar cambios" : "Crear nota"}
-        </Button>
-        <Button variant="ghost" onClick={onCancel}>
-          Cancelar
-        </Button>
-      </div>
-    </div>
+      <Field label="Contenido (Cmd/Ctrl+Enter para guardar)">
+        <textarea
+          className={`${inputCls} min-h-56 resize-y leading-6`}
+          value={content}
+          onChange={(event) => setContent(event.target.value)}
+          placeholder="- Item libre&#10;- Link importante&#10;- Idea suelta"
+        />
+      </Field>
+
+      <label className="flex items-center gap-2 text-sm text-text-muted">
+        <input
+          type="checkbox"
+          checked={pinned}
+          onChange={(event) => setPinned(event.target.checked)}
+          className="h-4 w-4 accent-accent"
+        />
+        Fijar arriba
+      </label>
+    </FormCard>
   );
 }
