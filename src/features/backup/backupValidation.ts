@@ -143,8 +143,17 @@ function validateLog(
  * - "text?": texto o null.
  * - "int": número entero.
  * - "bool": 0 o 1.
+ * - "date?": fecha YYYY-MM-DD o null.
+ * - "priority": entero de 0 a 3.
  */
-type FieldKind = "id" | "text" | "text?" | "int" | "bool";
+type FieldKind =
+  | "id"
+  | "text"
+  | "text?"
+  | "int"
+  | "bool"
+  | "date?"
+  | "priority";
 
 type RowSpec<Row> = { [Column in keyof Row]: FieldKind };
 
@@ -160,6 +169,12 @@ function matchesKind(value: unknown, kind: FieldKind): boolean {
       return typeof value === "number" && Number.isInteger(value);
     case "bool":
       return isBinaryNumber(value);
+    case "date?":
+      return value === null || isDateString(value);
+    case "priority":
+      return (
+        typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 3
+      );
   }
 }
 
@@ -180,6 +195,8 @@ function validateRows<Row>(
   table: string,
   spec: RowSpec<Row>,
   primaryKey: keyof Row & string,
+  /** Valores para las columnas ausentes (backups anteriores a su existencia). */
+  defaults: Partial<Row> = {},
 ): Row[] {
   const name = TABLE_LABELS[table] ?? table;
   if (!Array.isArray(value)) throw new Error(`Falta la sección ${name} del backup.`);
@@ -194,12 +211,14 @@ function validateRows<Row>(
 
     const row: Record<string, unknown> = {};
     for (const column of columns) {
-      if (!matchesKind(item[column], spec[column])) {
+      const missing = item[column] === undefined && column in defaults;
+      const candidate = missing ? defaults[column] : item[column];
+      if (!matchesKind(candidate, spec[column])) {
         throw new Error(
           `La fila ${index + 1} de ${name} tiene "${column}" inválido.`,
         );
       }
-      row[column] = item[column];
+      row[column] = candidate;
     }
 
     const key = row[primaryKey];
@@ -256,6 +275,16 @@ const TODO_ITEM_SPEC: RowSpec<BackupTodoItemRow> = {
   created_at: "id",
   updated_at: "id",
   completed_at: "text?",
+  due_date: "date?",
+  priority: "priority",
+  page_id: "text?",
+};
+
+/** Columnas de tareas que un backup anterior a la v4 no trae. */
+const TODO_ITEM_DEFAULTS: Partial<BackupTodoItemRow> = {
+  due_date: null,
+  priority: 0,
+  page_id: null,
 };
 
 const NOTE_SPEC: RowSpec<BackupNoteRow> = {
@@ -295,7 +324,7 @@ export function validateBackupFile(value: unknown): BackupFile {
   if (!isObject(value.metadata)) throw new Error("Falta metadata del backup.");
 
   const version = value.metadata.backupVersion;
-  if (version !== 1 && version !== 2 && version !== 3) {
+  if (version !== 1 && version !== 2 && version !== 3 && version !== 4) {
     throw new Error("La versión del backup no es compatible.");
   }
   if (value.metadata.app !== "Aurhabits") {
@@ -365,7 +394,14 @@ export function validateBackupFile(value: unknown): BackupFile {
       ROADMAP_ITEM_SPEC,
       "id",
     ),
-    todo_items: validateRows(value.todo_items, "todo_items", TODO_ITEM_SPEC, "id"),
+    todo_items: validateRows(
+      value.todo_items,
+      "todo_items",
+      TODO_ITEM_SPEC,
+      "id",
+      // Desde la v4 las columnas nuevas son obligatorias.
+      version === 4 ? {} : TODO_ITEM_DEFAULTS,
+    ),
     notes: validateRows(value.notes, "notes", NOTE_SPEC, "id"),
     app_metadata: validateRows(
       value.app_metadata,
@@ -394,8 +430,16 @@ export function validateBackupFile(value: unknown): BackupFile {
     }
   }
 
+  if (version === 3) {
+    return {
+      metadata: { backupVersion: 3, exportedAt, app: "Aurhabits" },
+      ...workspace,
+      pages,
+    };
+  }
+
   return {
-    metadata: { backupVersion: 3, exportedAt, app: "Aurhabits" },
+    metadata: { backupVersion: 4, exportedAt, app: "Aurhabits" },
     ...workspace,
     pages,
   };

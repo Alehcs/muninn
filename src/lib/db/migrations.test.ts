@@ -252,4 +252,74 @@ describe("migraciones", () => {
       expect(page[0]).toEqual({ content: "editado", content_format: "markdown" });
     });
   });
+
+  describe("migración 3: tareas con fecha, prioridad y página", () => {
+    async function dbAtV2WithTodos() {
+      const test = await createTestDatabase();
+      await MIGRATIONS[0].up(test.db);
+      await MIGRATIONS[1].up(test.db);
+      await test.db.execute("PRAGMA user_version = 2");
+      await test.db.execute(
+        `INSERT INTO todo_items VALUES
+           ('t1', 'Uno', 'notas', 0, 3, '2026-01-01T00:00:00.000Z', '2026-01-02T00:00:00.000Z', NULL),
+           ('t2', 'Dos', NULL, 1, 1, '2026-01-03T00:00:00.000Z', '2026-01-04T00:00:00.000Z', '2026-01-04T00:00:00.000Z')`,
+      );
+      return test;
+    }
+
+    it("añade las columnas con sus valores por defecto", async () => {
+      const { db } = await dbAtV2WithTodos();
+      await runMigrations(db);
+
+      const columns = await columnNames(db, "todo_items");
+      expect(columns).toEqual(expect.arrayContaining(["due_date", "priority", "page_id"]));
+      const rows = await db.select<Record<string, unknown>[]>(
+        "SELECT due_date, priority, page_id FROM todo_items",
+      );
+      expect(rows).toEqual([
+        { due_date: null, priority: 0, page_id: null },
+        { due_date: null, priority: 0, page_id: null },
+      ]);
+    });
+
+    it("las filas existentes conservan título, notas, estado, orden y fechas", async () => {
+      const { db } = await dbAtV2WithTodos();
+      await runMigrations(db);
+
+      const rows = await db.select<Record<string, unknown>[]>(
+        `SELECT id, title, notes, completed, order_index, created_at, updated_at, completed_at
+           FROM todo_items ORDER BY id`,
+      );
+      expect(rows).toEqual([
+        {
+          id: "t1", title: "Uno", notes: "notas", completed: 0, order_index: 3,
+          created_at: "2026-01-01T00:00:00.000Z", updated_at: "2026-01-02T00:00:00.000Z",
+          completed_at: null,
+        },
+        {
+          id: "t2", title: "Dos", notes: null, completed: 1, order_index: 1,
+          created_at: "2026-01-03T00:00:00.000Z", updated_at: "2026-01-04T00:00:00.000Z",
+          completed_at: "2026-01-04T00:00:00.000Z",
+        },
+      ]);
+    });
+
+    it("es idempotente: repetirla no falla ni pisa los valores guardados", async () => {
+      const { db } = await dbAtV2WithTodos();
+      await runMigrations(db);
+      await db.execute(
+        "UPDATE todo_items SET due_date = '2026-11-17', priority = 3, page_id = 'p' WHERE id = 't1'",
+      );
+
+      // Fuerza la repetición de la migración 3 (columnas ya presentes).
+      await db.execute("PRAGMA user_version = 2");
+      await runMigrations(db);
+
+      const row = await db.select<Record<string, unknown>[]>(
+        "SELECT due_date, priority, page_id FROM todo_items WHERE id = 't1'",
+      );
+      expect(row[0]).toEqual({ due_date: "2026-11-17", priority: 3, page_id: "p" });
+      expect(await userVersion(db)).toBe(CURRENT_SCHEMA_VERSION);
+    });
+  });
 });

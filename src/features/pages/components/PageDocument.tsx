@@ -4,6 +4,7 @@ import { FolderInput, FilePlus2, Pin, PinOff, Trash2 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import RowMenu from "@/components/RowMenu";
 import { notify } from "@/lib/notify";
+import PageTasks from "@/features/todos/components/PageTasks";
 import LazyMarkdownEditor, {
   type MarkdownEditorHandle,
 } from "../editor/LazyMarkdownEditor";
@@ -239,6 +240,8 @@ export default function PageDocument({ page }: { page: Page }) {
           onChange={() => bodySaver.schedule()}
           onFinalMarkdown={(markdown) => void bodySaver.flush(markdown)}
         />
+
+        <PageTasks pageId={page.id} />
       </article>
     </>
   );

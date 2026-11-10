@@ -1,21 +1,23 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { notify } from "@/lib/notify";
 import * as todoRepo from "../storage/todoRepository";
-import type { TodoInput, TodoItem } from "../types";
+import type { TodoInput, TodoItem, TodoPriority } from "../types";
 
 export type TodoStatus = "loading" | "ready" | "error";
 
 export interface TodoListStore {
   status: TodoStatus;
+  /** Todas las tareas (las vistas filtran con `utils/todoViews`). */
   items: TodoItem[];
-  completed: number;
-  total: number;
-  percent: number;
   reload: () => Promise<void>;
   createTodo: (input: TodoInput) => Promise<void>;
   updateTodo: (id: string, input: TodoInput) => Promise<void>;
+  setDueDate: (id: string, dueDate: string | null) => Promise<void>;
+  setPriority: (id: string, priority: TodoPriority) => Promise<void>;
   deleteTodo: (id: string) => Promise<void>;
   toggleTodo: (id: string) => Promise<void>;
+  /** Guarda posiciones 1…n (de `reorderPending`); se refleja al instante. */
+  reorderTodos: (positions: { id: string; position: number }[]) => Promise<void>;
 }
 
 export function useTodoList(): TodoListStore {
@@ -23,6 +25,8 @@ export function useTodoList(): TodoListStore {
   const [items, setItems] = useState<TodoItem[]>([]);
 
   const loadedRef = useRef(false);
+  const itemsRef = useRef<TodoItem[]>([]);
+  itemsRef.current = items;
 
   /** La pantalla de error completa solo aparece si falla la carga inicial. */
   const reload = useCallback(async () => {
@@ -42,88 +46,80 @@ export function useTodoList(): TodoListStore {
     void reload();
   }, [reload]);
 
-  const refresh = useCallback(async () => {
-    await reload();
-  }, [reload]);
-
-  /** Un fallo al guardar avisa y recarga para mostrar lo que hay realmente. */
-  const handleWriteError = useCallback(
-    async (error: unknown) => {
-      console.error("Todo operation failed", error);
-      notify.error("No se pudo guardar el cambio en las tareas.");
+  /** Escribe y recarga; un fallo avisa y recarga para mostrar lo que hay realmente. */
+  const write = useCallback(
+    async (operation: () => Promise<unknown>) => {
+      try {
+        await operation();
+      } catch (error) {
+        console.error("Todo operation failed", error);
+        notify.error("No se pudo guardar el cambio en las tareas.");
+      }
       await reload();
     },
     [reload],
   );
 
   const createTodo = useCallback(
-    async (input: TodoInput) => {
-      try {
-        await todoRepo.insertTodoItem(input);
-        await refresh();
-      } catch (error) {
-        await handleWriteError(error);
-      }
-    },
-    [refresh, handleWriteError],
+    (input: TodoInput) => write(() => todoRepo.insertTodoItem(input)),
+    [write],
   );
 
   const updateTodo = useCallback(
-    async (id: string, input: TodoInput) => {
-      try {
-        await todoRepo.updateTodoItem(id, input);
-        await refresh();
-      } catch (error) {
-        await handleWriteError(error);
-      }
-    },
-    [refresh, handleWriteError],
+    (id: string, input: TodoInput) => write(() => todoRepo.updateTodoItem(id, input)),
+    [write],
+  );
+
+  const setDueDate = useCallback(
+    (id: string, dueDate: string | null) =>
+      write(() => todoRepo.setTodoDueDate(id, dueDate)),
+    [write],
+  );
+
+  const setPriority = useCallback(
+    (id: string, priority: TodoPriority) =>
+      write(() => todoRepo.setTodoPriority(id, priority)),
+    [write],
   );
 
   const deleteTodo = useCallback(
-    async (id: string) => {
-      try {
-        await todoRepo.deleteTodoItem(id);
-        await refresh();
-      } catch (error) {
-        await handleWriteError(error);
-      }
-    },
-    [refresh, handleWriteError],
+    (id: string) => write(() => todoRepo.deleteTodoItem(id)),
+    [write],
   );
 
   const toggleTodo = useCallback(
     async (id: string) => {
-      const item = items.find((current) => current.id === id);
+      const item = itemsRef.current.find((current) => current.id === id);
       if (!item) return;
-
-      try {
-        await todoRepo.setTodoCompleted(id, !item.completed);
-        await refresh();
-      } catch (error) {
-        await handleWriteError(error);
-      }
+      await write(() => todoRepo.setTodoCompleted(id, !item.completed));
     },
-    [items, refresh, handleWriteError],
+    [write],
   );
 
-  const completed = useMemo(
-    () => items.filter((item) => item.completed).length,
-    [items],
+  const reorderTodos = useCallback(
+    async (positions: { id: string; position: number }[]) => {
+      // Optimista: la lista salta a su sitio sin esperar a la base.
+      const byId = new Map(positions.map((entry) => [entry.id, entry.position]));
+      setItems((current) =>
+        current.map((item) =>
+          byId.has(item.id) ? { ...item, orderIndex: byId.get(item.id)! } : item,
+        ),
+      );
+      await write(() => todoRepo.reorderTodoItems(positions));
+    },
+    [write],
   );
-  const total = items.length;
-  const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
 
   return {
     status,
     items,
-    completed,
-    total,
-    percent,
     reload,
     createTodo,
     updateTodo,
+    setDueDate,
+    setPriority,
     deleteTodo,
     toggleTodo,
+    reorderTodos,
   };
 }

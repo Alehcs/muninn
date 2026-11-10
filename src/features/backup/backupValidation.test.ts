@@ -106,9 +106,74 @@ describe("validateBackupFile", () => {
     expect(() => validateBackupFile({ ...v3, pages: [page, page] })).toThrow(/duplicado/);
   });
 
+  describe("tareas (columnas de la v4)", () => {
+    const page = {
+      id: "p1",
+      parent_id: null,
+      title: "P",
+      icon: null,
+      content: "",
+      content_format: "markdown",
+      kind: "page",
+      properties: "{}",
+      pinned: 0,
+      sort_order: 0,
+      deleted_at: null,
+      created_at: T,
+      updated_at: T,
+    };
+    const oldTodo = {
+      id: "t1",
+      title: "Tarea",
+      notes: null,
+      completed: 0,
+      order_index: 1,
+      created_at: T,
+      updated_at: T,
+      completed_at: null,
+    };
+    const v3 = (todo: object) => ({
+      ...backupV2({ todo_items: [todo] }),
+      metadata: { backupVersion: 3, exportedAt: T, app: "Aurhabits" },
+      pages: [page],
+    });
+    const v4 = (todo: object) => ({
+      ...v3(todo),
+      metadata: { backupVersion: 4, exportedAt: T, app: "Aurhabits" },
+    });
+    const newTodo = { ...oldTodo, due_date: "2026-11-17", priority: 2, page_id: "p1" };
+
+    it("v1-v3: las columnas que faltan toman su valor por defecto", () => {
+      for (const file of [backupV2({ todo_items: [oldTodo] }), v3(oldTodo)]) {
+        const result = validateBackupFile(file);
+        expect("todo_items" in result && result.todo_items[0]).toMatchObject({
+          due_date: null,
+          priority: 0,
+          page_id: null,
+        });
+      }
+    });
+
+    it("v4: acepta las columnas nuevas", () => {
+      const result = validateBackupFile(v4(newTodo));
+      expect(result.metadata.backupVersion).toBe(4);
+      expect("todo_items" in result && result.todo_items[0]).toMatchObject({
+        due_date: "2026-11-17",
+        priority: 2,
+        page_id: "p1",
+      });
+    });
+
+    it("v4: exige las columnas y valida fecha y prioridad", () => {
+      expect(() => validateBackupFile(v4(oldTodo))).toThrow(/due_date/);
+      expect(() => validateBackupFile(v4({ ...newTodo, due_date: "17/11/2026" }))).toThrow(/due_date/);
+      expect(() => validateBackupFile(v4({ ...newTodo, priority: 4 }))).toThrow(/priority/);
+    });
+  });
+
   it("rechaza una versión desconocida", () => {
     const bad = backupV1({
-      metadata: { backupVersion: 4, exportedAt: T, app: "Aurhabits" },
+      metadata: { backupVersion: 5, exportedAt: T, app: "Aurhabits" },
     });
     expect(() => validateBackupFile(bad)).toThrow(/versión/);
   });

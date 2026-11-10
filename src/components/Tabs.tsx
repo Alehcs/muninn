@@ -5,6 +5,8 @@ import { cn } from "@/utils/cn";
 export interface TabItem<T extends string = string> {
   id: T;
   label: string;
+  /** Contador opcional, junto al nombre. */
+  count?: number;
 }
 
 interface TabsProps<T extends string> {
@@ -96,6 +98,14 @@ export default function Tabs<T extends string>({
             )}
           >
             {tab.label}
+            {tab.count !== undefined && (
+              <span
+                className="ml-1.5 text-xs font-normal tabular-nums text-text-muted"
+                aria-label={`, ${tab.count}`}
+              >
+                {tab.count}
+              </span>
+            )}
           </button>
         );
       })}

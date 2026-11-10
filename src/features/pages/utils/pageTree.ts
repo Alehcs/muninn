@@ -135,3 +135,14 @@ export function matchesQuery(page: Page, query: string): boolean {
     page.content.toLocaleLowerCase().includes(needle)
   );
 }
+
+/** El árbol en una lista plana (en orden de lectura), con su profundidad. */
+export function flattenTree(
+  nodes: PageNode[],
+  depth = 0,
+): { page: Page; depth: number }[] {
+  return nodes.flatMap((node) => [
+    { page: node.page, depth },
+    ...flattenTree(node.children, depth + 1),
+  ]);
+}

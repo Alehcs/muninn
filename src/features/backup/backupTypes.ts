@@ -5,10 +5,12 @@ import type { HabitCategory, HabitType, HabitUnit } from "@/features/habits/type
  * - v1: solo hábitos y sus registros.
  * - v2: hábitos, registros, roadmaps, tareas, notas y metadata (sin páginas).
  * - v3: todo lo de v2 más `pages` (las notas se siguen exportando).
+ * - v4: como v3, con `due_date`, `priority` y `page_id` en `todo_items`.
+ *   Al importar un v1-v3 esas columnas toman su valor por defecto.
  */
-export const BACKUP_VERSION = 3;
+export const BACKUP_VERSION = 4;
 
-export interface BackupMetadata<Version extends 1 | 2 | 3 = 1 | 2 | 3> {
+export interface BackupMetadata<Version extends 1 | 2 | 3 | 4 = 1 | 2 | 3 | 4> {
   backupVersion: Version;
   exportedAt: string;
   app: "Aurhabits";
@@ -81,6 +83,10 @@ export interface BackupTodoItemRow {
   created_at: string;
   updated_at: string;
   completed_at: string | null;
+  /** Desde la v4. En backups anteriores se rellenan con su valor por defecto. */
+  due_date: string | null;
+  priority: number;
+  page_id: string | null;
 }
 
 export interface BackupNoteRow {
@@ -151,24 +157,45 @@ export interface BackupFileV2 extends BackupHabitTables, BackupWorkspaceTables {
   metadata: BackupMetadata<2>;
 }
 
-/** Backup completo actual. */
+/** Backup con páginas, anterior a las columnas nuevas de tareas. */
 export interface BackupFileV3 extends BackupTables {
   metadata: BackupMetadata<3>;
 }
 
-export type BackupFile = BackupFileV1 | BackupFileV2 | BackupFileV3;
+/** Backup completo actual. */
+export interface BackupFileV4 extends BackupTables {
+  metadata: BackupMetadata<4>;
+}
 
-/** ¿Trae roadmaps, tareas y notas? (v2 y v3; el v1 solo hábitos). */
+export type BackupFile =
+  | BackupFileV1
+  | BackupFileV2
+  | BackupFileV3
+  | BackupFileV4;
+
+/** ¿Trae roadmaps, tareas y notas? (v2 en adelante; el v1 solo hábitos). */
 export function isFullBackup(
   backup: BackupFile,
-): backup is BackupFileV2 | BackupFileV3 {
+): backup is BackupFileV2 | BackupFileV3 | BackupFileV4 {
   return backup.metadata.backupVersion >= 2;
 }
 
-/** ¿Trae la tabla `pages`? Solo desde la v3. */
-export function hasPages(backup: BackupFile): backup is BackupFileV3 {
-  return backup.metadata.backupVersion === 3;
+/** ¿Trae la tabla `pages`? Desde la v3. */
+export function hasPages(
+  backup: BackupFile,
+): backup is BackupFileV3 | BackupFileV4 {
+  return backup.metadata.backupVersion >= 3;
 }
+
+/**
+ * Valor de las columnas que un backup antiguo no trae (y de las que son
+ * NOT NULL en la base). Las demás toman NULL.
+ */
+export const BACKUP_COLUMN_DEFAULTS: {
+  [Table in BackupTableName]?: Partial<BackupTables[Table][number]>;
+} = {
+  todo_items: { due_date: null, priority: 0, page_id: null },
+};
 
 /**
  * Columnas de cada tabla, en el orden en que se leen y se insertan.
@@ -234,6 +261,9 @@ export const BACKUP_TABLE_COLUMNS: {
     "created_at",
     "updated_at",
     "completed_at",
+    "due_date",
+    "priority",
+    "page_id",
   ],
   notes: [
     "id",

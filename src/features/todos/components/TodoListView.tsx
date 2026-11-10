@@ -1,40 +1,31 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Button from "@/components/Button";
-import { Page, PageStrip } from "@/components/PageHeader";
-import { confirm } from "@/lib/confirm";
-import TodoItemForm from "./TodoItemForm";
-import TodoItemRow from "./TodoItemRow";
+import { Page } from "@/components/PageHeader";
+import Tabs, { TabPanel, type TabItem } from "@/components/Tabs";
+import { usePrimaryAction } from "@/lib/usePrimaryAction";
 import { useTodoList } from "../hooks/useTodoList";
-import type { TodoInput, TodoItem } from "../types";
+import { groupByDay, toDateKey } from "../utils/todoDates";
+import { filterForTab, tabCounts, type TodoTab } from "../utils/todoViews";
+import TodoList from "./TodoList";
+import TodoQuickAdd from "./TodoQuickAdd";
 
-type FormState = { open: false } | { open: true; item?: TodoItem };
+const ID_PREFIX = "todos";
+
+const EMPTY_MESSAGES: Record<TodoTab, string> = {
+  pending: "Sin tareas pendientes.",
+  today: "Nada vence hoy ni está vencido.",
+  upcoming: "No hay tareas con fecha futura.",
+  completed: "Aún no has completado ninguna tarea.",
+};
 
 export default function TodoListView() {
   const todo = useTodoList();
-  const [form, setForm] = useState<FormState>({ open: false });
+  const [tab, setTab] = useState<TodoTab>("pending");
+  const quickAddRef = useRef<HTMLInputElement>(null);
+  const today = toDateKey(new Date());
 
-  const handleSubmit = (values: TodoInput) => {
-    if (!form.open) return;
-
-    if (form.item) {
-      void todo.updateTodo(form.item.id, values);
-    } else {
-      void todo.createTodo(values);
-    }
-    setForm({ open: false });
-  };
-
-  const handleDelete = async (item: TodoItem) => {
-    const ok = await confirm({
-      title: "Eliminar tarea",
-      message: `¿Eliminar la tarea "${item.title}"?`,
-      confirmLabel: "Eliminar",
-      destructive: true,
-    });
-    if (!ok) return;
-    setForm({ open: false });
-    void todo.deleteTodo(item.id);
-  };
+  // Cmd/Ctrl+N: foco en el campo de alta rápida.
+  usePrimaryAction(() => quickAddRef.current?.focus());
 
   if (todo.status === "loading") {
     return (
@@ -60,65 +51,58 @@ export default function TodoListView() {
     );
   }
 
+  const counts = tabCounts(todo.items, today);
+  const tabs: TabItem<TodoTab>[] = [
+    { id: "pending", label: "Pendientes", count: counts.pending },
+    { id: "today", label: "Hoy", count: counts.today },
+    { id: "upcoming", label: "Próximas", count: counts.upcoming },
+    { id: "completed", label: "Completadas", count: counts.completed },
+  ];
+  const items = filterForTab(todo.items, tab, today);
+
   return (
     <Page
       title="Tareas"
-      primaryAction={{
-        label: "Nueva tarea",
-        onClick: () => setForm({ open: true }),
-        hidden: form.open,
-      }}
+      toolbar={
+        <Tabs
+          tabs={tabs}
+          value={tab}
+          onChange={setTab}
+          label="Filtros de tareas"
+          idPrefix={ID_PREFIX}
+        />
+      }
     >
-      <PageStrip>
-        <p className="text-sm text-text-muted">
-          <span className="text-lg font-semibold text-text">{todo.percent}%</span>{" "}
-          · {todo.completed}/{todo.total} tareas
-        </p>
-        <div
-          className="h-2 min-w-32 flex-1 overflow-hidden rounded-full bg-surface-hover"
-          role="progressbar"
-          aria-label="Progreso de tareas"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={todo.percent}
-        >
-          <div
-            className="h-full rounded-full bg-success"
-            style={{ width: `${todo.percent}%` }}
-          />
-        </div>
-      </PageStrip>
+      <TodoQuickAdd
+        inputRef={quickAddRef}
+        today={today}
+        defaultDueDate={tab === "today" ? today : undefined}
+        onAdd={(input) => void todo.createTodo(input)}
+      />
 
-      {form.open && (
-        <div className="mb-5">
-          <TodoItemForm
-            initial={form.item}
-            onSubmit={handleSubmit}
-            onCancel={() => setForm({ open: false })}
+      <TabPanel idPrefix={ID_PREFIX} id={tab} className="mt-3">
+        {items.length === 0 ? (
+          <p className="px-2 text-sm text-text-muted">{EMPTY_MESSAGES[tab]}</p>
+        ) : tab === "upcoming" ? (
+          <div className="flex flex-col gap-3">
+            {groupByDay(items, today).map((group) => (
+              <section key={group.date} aria-label={group.label}>
+                <h2 className="px-2 pb-1 text-xs font-medium text-text-muted">
+                  {group.label}
+                </h2>
+                <TodoList store={todo} items={group.items} today={today} />
+              </section>
+            ))}
+          </div>
+        ) : (
+          <TodoList
+            store={todo}
+            items={items}
+            today={today}
+            sortable={tab === "pending"}
           />
-        </div>
-      )}
-
-      {todo.items.length === 0 ? (
-        <div className="rounded-xl border border-border bg-surface p-5">
-          <h3 className="font-medium">Sin tareas todavía</h3>
-          <p className="mt-1 text-sm text-text-muted">
-            Crea una tarea nueva cuando algo no pertenezca a hábitos ni listas.
-          </p>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {todo.items.map((item) => (
-            <TodoItemRow
-              key={item.id}
-              item={item}
-              onToggle={() => void todo.toggleTodo(item.id)}
-              onEdit={() => setForm({ open: true, item })}
-              onDelete={() => void handleDelete(item)}
-            />
-          ))}
-        </div>
-      )}
+        )}
+      </TabPanel>
     </Page>
   );
 }

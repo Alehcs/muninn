@@ -220,6 +220,34 @@ export const MIGRATIONS: Migration[] = [
       await db.execute(COPY_NOTES_TO_PAGES_SQL);
     },
   },
+  {
+    version: 3,
+    name: "tareas con fecha, prioridad y página",
+    // Solo añade columnas (y sus índices); las tareas existentes no cambian.
+    async up(db) {
+      for (const definition of TODO_ITEM_COLUMNS) {
+        const [name] = definition.split(" ");
+        await ensureColumn(db, "todo_items", name, definition);
+      }
+      await db.execute(
+        `CREATE INDEX IF NOT EXISTS idx_todo_items_due ON todo_items (due_date)`,
+      );
+      await db.execute(
+        `CREATE INDEX IF NOT EXISTS idx_todo_items_page ON todo_items (page_id)`,
+      );
+    },
+  },
+];
+
+/**
+ * Columnas nuevas de `todo_items` (migración 3): fecha límite `YYYY-MM-DD`,
+ * prioridad (0 ninguna, 1 baja, 2 media, 3 alta) y página a la que pertenece.
+ * Las filas existentes quedan con los valores por defecto.
+ */
+const TODO_ITEM_COLUMNS = [
+  "due_date TEXT",
+  "priority INTEGER NOT NULL DEFAULT 0",
+  "page_id TEXT",
 ];
 
 export const CURRENT_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

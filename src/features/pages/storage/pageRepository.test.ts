@@ -158,3 +158,65 @@ describe("pageRepository", () => {
     expect(await ids(() => true)).toHaveLength(4);
   });
 });
+
+describe("pageRepository y tareas enlazadas", () => {
+  let test: TestDatabase;
+
+  beforeEach(async () => {
+    test = await createTestDatabase();
+    await runMigrations(test.db);
+    setDatabaseForTesting(test.db);
+  });
+
+  afterEach(() => setDatabaseForTesting(null));
+
+  async function linkedTodo(id: string, pageId: string | null) {
+    await test.db.execute(
+      `INSERT INTO todo_items
+         (id, title, completed, order_index, created_at, updated_at, page_id)
+       VALUES ($1, $1, 0, 1, 'x', 'x', $2)`,
+      [id, pageId],
+    );
+  }
+
+  async function pageIdOf(id: string) {
+    const rows = await test.db.select<{ page_id: string | null }[]>(
+      "SELECT page_id FROM todo_items WHERE id = $1",
+      [id],
+    );
+    return rows[0].page_id;
+  }
+
+  it("mandar a la papelera no toca las tareas", async () => {
+    const page = await repo.createPage({ title: "proyecto" });
+    await linkedTodo("t1", page.id);
+    await repo.trashPage(page.id);
+    expect(await pageIdOf("t1")).toBe(page.id);
+  });
+
+  it("eliminar definitivamente conserva las tareas, ahora sin página", async () => {
+    const root = await repo.createPage({ title: "raíz" });
+    const child = await repo.createPage({ title: "hija", parentId: root.id });
+    const other = await repo.createPage({ title: "otra" });
+    await linkedTodo("t1", root.id);
+    await linkedTodo("t2", child.id);
+    await linkedTodo("t3", other.id);
+    await linkedTodo("t4", null);
+
+    await repo.trashPage(root.id);
+    await repo.deletePagePermanently(root.id);
+
+    const count = await test.db.select<{ n: number }[]>("SELECT COUNT(*) AS n FROM todo_items");
+    expect(count[0].n).toBe(4);
+    expect(await pageIdOf("t1")).toBeNull();
+    expect(await pageIdOf("t2")).toBeNull();
+    expect(await pageIdOf("t3")).toBe(other.id);
+  });
+
+  it("sobre una página activa no hace nada, tampoco con sus tareas", async () => {
+    const page = await repo.createPage({ title: "viva" });
+    await linkedTodo("t1", page.id);
+    await repo.deletePagePermanently(page.id);
+    expect(await pageIdOf("t1")).toBe(page.id);
+  });
+});

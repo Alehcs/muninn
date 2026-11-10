@@ -275,7 +275,8 @@ export async function restorePage(id: string): Promise<void> {
 /**
  * Borra de verdad una página que YA está en la papelera, con los descendientes
  * que también están en ella. Una descendiente activa (p. ej. movida después)
- * no se borra: sube a la raíz. Sobre una página activa no hace nada.
+ * no se borra: sube a la raíz. Sobre una página activa no hace nada. Las
+ * tareas enlazadas no se borran: pasan a `page_id = NULL`.
  */
 export async function deletePagePermanently(id: string): Promise<void> {
   const db = await getDatabase();
@@ -292,6 +293,14 @@ export async function deletePagePermanently(id: string): Promise<void> {
              WHERE deleted_at IS NULL
                AND parent_id IN (SELECT id FROM subtree WHERE id IN
                                  (SELECT id FROM pages WHERE deleted_at IS NOT NULL))`,
+      params: [id],
+    },
+    {
+      // Las tareas de las páginas que se borran no se pierden: se quedan sin página.
+      sql: `${SUBTREE_CTE}
+            UPDATE todo_items SET page_id = NULL
+             WHERE page_id IN (SELECT id FROM subtree WHERE id IN
+                               (SELECT id FROM pages WHERE deleted_at IS NOT NULL))`,
       params: [id],
     },
     {

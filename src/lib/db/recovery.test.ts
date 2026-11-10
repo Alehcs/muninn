@@ -41,6 +41,27 @@ describe.skipIf(files.length === 0)("migraciones sobre copias reales (en memoria
     expect(version[0].user_version).toBe(CURRENT_SCHEMA_VERSION);
   });
 
+  it.each(files)("%s: las tareas conservan su número y reciben las columnas nuevas", async (file) => {
+    const bytes = new Uint8Array(readFileSync(join(RECOVERY_DIR, file)));
+    const { db } = await createTestDatabase(bytes);
+    const tablesBefore = await db.select<{ name: string }[]>(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'todo_items'",
+    );
+    const before = tablesBefore.length
+      ? (await db.select<{ n: number }[]>("SELECT COUNT(*) AS n FROM todo_items"))[0].n
+      : 0;
+
+    await runMigrations(db);
+
+    const after = await db.select<{ n: number }[]>("SELECT COUNT(*) AS n FROM todo_items");
+    expect(after[0].n).toBe(before);
+    // Ninguna tarea existente queda con fecha, prioridad o página inventadas.
+    const touched = await db.select<{ n: number }[]>(
+      "SELECT COUNT(*) AS n FROM todo_items WHERE due_date IS NOT NULL OR priority <> 0 OR page_id IS NOT NULL",
+    );
+    expect(touched[0].n).toBe(0);
+  });
+
   it.each(files)("%s: tras migrar hay tantas páginas como notas, con contenido idéntico", async (file) => {
     const bytes = new Uint8Array(readFileSync(join(RECOVERY_DIR, file)));
     const { db } = await createTestDatabase(bytes);

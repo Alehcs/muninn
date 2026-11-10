@@ -30,8 +30,11 @@ async function seed({ db }: TestDatabase) {
     [T],
   );
   await db.execute(
-    `INSERT INTO todo_items VALUES ('t1','Tarea',NULL,0,1,$1,$1,NULL),
-                                   ('t2','Hecha','n',1,2,$1,$1,$1)`,
+    `INSERT INTO todo_items
+       (id, title, notes, completed, order_index, created_at, updated_at, completed_at,
+        due_date, priority, page_id)
+     VALUES ('t1','Tarea',NULL,0,1,$1,$1,NULL,'2026-03-04',3,'p1'),
+            ('t2','Hecha','n',1,2,$1,$1,$1,NULL,0,NULL)`,
     [T],
   );
   await db.execute(
@@ -79,7 +82,7 @@ describe("backup: ida y vuelta", () => {
     expect((await readBackupData()).habits).toHaveLength(0);
 
     const backup: BackupFile = {
-      metadata: { backupVersion: 3, exportedAt: T, app: "Aurhabits" },
+      metadata: { backupVersion: 4, exportedAt: T, app: "Aurhabits" },
       ...first,
     };
     await replaceBackupData(backup);
@@ -87,6 +90,50 @@ describe("backup: ida y vuelta", () => {
     const second = await readBackupData();
     expect(withoutSeedFlag(second)).toEqual(withoutSeedFlag(first));
     expect(second.app_metadata.some((row) => row.key === "roadmap_seeded")).toBe(true);
+  });
+
+  it("v4: las columnas nuevas de tareas hacen la ida y vuelta", async () => {
+    await seed(test);
+    const first = await readBackupData();
+    expect(first.todo_items[0]).toMatchObject({
+      due_date: "2026-03-04",
+      priority: 3,
+      page_id: "p1",
+    });
+    await test.db.execute("UPDATE todo_items SET due_date = NULL, priority = 0, page_id = NULL");
+
+    await replaceBackupData({
+      metadata: { backupVersion: 4, exportedAt: T, app: "Aurhabits" },
+      ...first,
+    });
+    expect((await readBackupData()).todo_items).toEqual(first.todo_items);
+  });
+
+  it("v3 (tareas sin columnas nuevas): se importa con valores por defecto", async () => {
+    await seed(test);
+    const data = await readBackupData();
+    const oldTodos = data.todo_items.map((todo) => {
+      const { due_date: _d, priority: _p, page_id: _g, ...old } = todo;
+      void _d;
+      void _p;
+      void _g;
+      return old;
+    });
+    // Un v3 real no tiene las columnas: se pasa tal cual, sin normalizar.
+    const v3 = {
+      metadata: { backupVersion: 3, exportedAt: T, app: "Aurhabits" },
+      ...data,
+      todo_items: oldTodos,
+    } as unknown as BackupFile;
+
+    await replaceBackupData(v3);
+
+    const after = await readBackupData();
+    expect(after.todo_items).toHaveLength(2);
+    expect(after.todo_items.map((todo) => todo.title)).toEqual(["Tarea", "Hecha"]);
+    expect(after.todo_items.every((todo) => todo.due_date === null)).toBe(true);
+    expect(after.todo_items.every((todo) => todo.priority === 0)).toBe(true);
+    expect(after.todo_items.every((todo) => todo.page_id === null)).toBe(true);
   });
 
   it("v3: reemplaza todo, páginas incluidas (con papelera y formato)", async () => {
@@ -97,7 +144,7 @@ describe("backup: ida y vuelta", () => {
     await test.db.execute("INSERT INTO pages (id,title,created_at,updated_at) VALUES ('p9','extra',$1,$1)", [T]);
 
     await replaceBackupData({
-      metadata: { backupVersion: 3, exportedAt: T, app: "Aurhabits" },
+      metadata: { backupVersion: 4, exportedAt: T, app: "Aurhabits" },
       ...first,
     });
     expect((await readBackupData()).pages).toEqual(first.pages);

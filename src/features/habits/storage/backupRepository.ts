@@ -3,6 +3,7 @@ import { getDatabase } from "@/lib/db/database";
 import { COPY_NOTES_TO_PAGES_SQL } from "@/lib/db/migrations";
 import {
   ALL_TABLES,
+  BACKUP_COLUMN_DEFAULTS,
   BACKUP_TABLE_COLUMNS,
   HABIT_TABLES,
   V2_TABLES,
@@ -57,7 +58,8 @@ export async function readBackupData(): Promise<BackupTables> {
 
 /**
  * Reemplaza los datos locales por los del backup.
- * - v3: reemplaza todas las tablas, `pages` incluida.
+ * - v3/v4: reemplazan todas las tablas, `pages` incluida (en un v3 las
+ *   columnas nuevas de tareas toman su valor por defecto).
  * - v2 (sin `pages`): reemplaza sus tablas y reconstruye `pages` a partir de
  *   las notas importadas, igual que la migración 2.
  * - v1: solo hábitos y registros; notas, páginas, tareas y roadmaps se quedan
@@ -81,13 +83,14 @@ export async function replaceBackupData(backup: BackupFile): Promise<void> {
   for (const table of [...tables].reverse()) {
     const columns = BACKUP_TABLE_COLUMNS[table];
     const placeholders = columns.map((_, index) => `$${index + 1}`).join(", ");
+    const defaults: Record<string, unknown> = BACKUP_COLUMN_DEFAULTS[table] ?? {};
     const sql = `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${placeholders})`;
 
     for (const row of rowsByTable[table] ?? []) {
       const values = row as Record<string, unknown>;
       statements.push({
         sql,
-        params: columns.map((column) => values[column] ?? null),
+        params: columns.map((column) => values[column] ?? defaults[column] ?? null),
       });
     }
   }
