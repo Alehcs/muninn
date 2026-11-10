@@ -2,6 +2,7 @@ import {
   CalendarCheck,
   ListChecks,
   Repeat,
+  Plus,
   Settings,
   SquareCheckBig,
   StickyNote,
@@ -9,18 +10,17 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import ActiveTimerIndicator from "@/components/ActiveTimerIndicator";
+import { useNavigation } from "@/app/NavigationContext";
 import { NAV_GROUPS, SETTINGS_ITEM } from "@/app/navigation";
 import type { NavItem, View } from "@/app/navigation";
+import IconButton from "@/components/IconButton";
+import PageTree from "@/features/pages/components/PageTree";
+import { usePageCommands } from "@/features/pages/hooks/usePageCommands";
 import { cn } from "@/utils/cn";
-
-interface SidebarProps {
-  view: View;
-  onNavigate: (view: View) => void;
-}
 
 const ICONS: Record<View, LucideIcon> = {
   today: CalendarCheck,
-  notes: StickyNote,
+  pages: StickyNote,
   todos: SquareCheckBig,
   roadmap: ListChecks,
   habits: Repeat,
@@ -67,7 +67,33 @@ function NavButton({
   );
 }
 
-export default function Sidebar({ view, onNavigate }: SidebarProps) {
+/** "Páginas": entrada del índice, botón "+" y el árbol de páginas debajo. */
+function PagesSection({ active }: { active: boolean }) {
+  const { navigate } = useNavigation();
+  const commands = usePageCommands();
+  const item = NAV_GROUPS.flatMap((group) => group.items).find(
+    (candidate) => candidate.view === "pages",
+  )!;
+
+  return (
+    <>
+      <div className="group/pages relative">
+        <NavButton item={item} active={active} onNavigate={(view) => navigate(view)} />
+        <IconButton
+          icon={Plus}
+          label="Nueva página"
+          onClick={() => void commands.createRoot()}
+          className="absolute right-1 top-0.5 opacity-0 focus-visible:opacity-100 group-hover/pages:opacity-100 [@media(hover:none)]:opacity-100"
+        />
+      </div>
+      <PageTree />
+    </>
+  );
+}
+
+export default function Sidebar() {
+  const { location, navigate: onNavigate } = useNavigation();
+  const view = location.view;
   return (
     <aside className="flex w-[220px] shrink-0 flex-col border-r border-border bg-surface">
       <div className="flex h-[52px] items-center gap-2 px-5">
@@ -97,20 +123,27 @@ export default function Sidebar({ view, onNavigate }: SidebarProps) {
                 {group.label}
               </p>
             )}
-            {group.items.map((item) => (
-              <NavButton
-                key={item.view}
-                item={item}
-                active={view === item.view}
-                onNavigate={onNavigate}
-              />
-            ))}
+            {group.items.map((item) =>
+              item.view === "pages" ? (
+                <PagesSection
+                  key={item.view}
+                  active={view === "pages" && location.pageId === undefined}
+                />
+              ) : (
+                <NavButton
+                  key={item.view}
+                  item={item}
+                  active={view === item.view}
+                  onNavigate={onNavigate}
+                />
+              ),
+            )}
           </div>
         ))}
       </nav>
 
       <div className="flex flex-col gap-2 border-t border-border p-3">
-        <ActiveTimerIndicator onNavigate={onNavigate} />
+        <ActiveTimerIndicator />
         <NavButton
           item={SETTINGS_ITEM}
           active={view === SETTINGS_ITEM.view}

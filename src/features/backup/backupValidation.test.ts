@@ -76,9 +76,39 @@ describe("validateBackupFile", () => {
     expect("notes" in result && result.notes).toHaveLength(1);
   });
 
+  it("acepta un backup v3 con páginas y rechaza uno v3 sin ellas", () => {
+    const page = {
+      id: "p1",
+      parent_id: null,
+      title: "P",
+      icon: null,
+      content: "# x",
+      content_format: "markdown",
+      kind: "page",
+      properties: "{}",
+      pinned: 0,
+      sort_order: 0,
+      deleted_at: null,
+      created_at: T,
+      updated_at: T,
+    };
+    const v3 = { ...backupV2(), metadata: { backupVersion: 3, exportedAt: T, app: "Aurhabits" } };
+    expect(() => validateBackupFile(v3)).toThrow(/páginas/);
+    const ok = validateBackupFile({ ...v3, pages: [page] });
+    expect(ok.metadata.backupVersion).toBe(3);
+    expect("pages" in ok && ok.pages).toHaveLength(1);
+    expect(() =>
+      validateBackupFile({ ...v3, pages: [{ ...page, content_format: "html" }] }),
+    ).toThrow(/formato/);
+    expect(() =>
+      validateBackupFile({ ...v3, pages: [{ ...page, properties: "no json" }] }),
+    ).toThrow(/JSON/);
+    expect(() => validateBackupFile({ ...v3, pages: [page, page] })).toThrow(/duplicado/);
+  });
+
   it("rechaza una versión desconocida", () => {
     const bad = backupV1({
-      metadata: { backupVersion: 3, exportedAt: T, app: "Aurhabits" },
+      metadata: { backupVersion: 4, exportedAt: T, app: "Aurhabits" },
     });
     expect(() => validateBackupFile(bad)).toThrow(/versión/);
   });

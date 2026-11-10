@@ -26,5 +26,12 @@ async function fetchSeed(): Promise<Uint8Array | undefined> {
 export async function openBrowserDatabase(): Promise<SqlDatabase> {
   const SQL = await initSqlJs({ locateFile: () => wasmUrl });
   const seed = await fetchSeed();
-  return createSqlJsDatabase(new SQL.Database(seed));
+  const raw = new SQL.Database(seed);
+  // Solo desarrollo: permite inspeccionar la base en memoria desde la consola
+  // (p. ej. comprobar que abrir una página no escribe). Este archivo nunca
+  // entra en la compilación de producción.
+  (window as unknown as { __aurhabitsDb?: unknown }).__aurhabitsDb = {
+    exec: (sql: string) => raw.exec(sql),
+  };
+  return createSqlJsDatabase(raw);
 }

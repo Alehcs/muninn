@@ -14,6 +14,8 @@ export interface PrimaryAction {
 
 interface PageHeaderProps {
   title: string;
+  /** Sustituye al título de texto (p. ej. migas de pan). `title` sigue siendo el nombre accesible. */
+  titleContent?: ReactNode;
   subtitle?: string;
   /** Acciones secundarias, a la izquierda de la principal. */
   actions?: ReactNode;
@@ -29,6 +31,7 @@ interface PageHeaderProps {
  */
 export default function PageHeader({
   title,
+  titleContent,
   subtitle,
   actions,
   primaryAction,
@@ -41,7 +44,14 @@ export default function PageHeader({
     <header className="sticky top-0 z-10 border-b border-border bg-bg">
       <div className="flex h-[52px] items-center gap-3 px-8">
         <div className="flex min-w-0 items-baseline gap-3">
-          <h1 className="truncate text-base font-semibold">{title}</h1>
+          {titleContent ? (
+            <>
+              <h1 className="sr-only">{title}</h1>
+              {titleContent}
+            </>
+          ) : (
+            <h1 className="truncate text-base font-semibold">{title}</h1>
+          )}
           {subtitle && (
             <p className="truncate text-sm text-text-muted">{subtitle}</p>
           )}

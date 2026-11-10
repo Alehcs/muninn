@@ -3,10 +3,11 @@
  * Calendario, Historial y Estadísticas ya no son vistas: son pestañas dentro
  * de "habits". Los nombres internos se conservan aunque el texto visible
  * cambie ("roadmap" se muestra como "Listas", "study" como "Enfoque").
+ * "pages" (antes "notes") es el índice de páginas y, con `pageId`, una página.
  */
 export type View =
   | "today"
-  | "notes"
+  | "pages"
   | "todos"
   | "roadmap"
   | "habits"
@@ -30,7 +31,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Espacio",
     items: [
-      { view: "notes", label: "Notas" },
+      { view: "pages", label: "Páginas" },
       { view: "todos", label: "Tareas" },
       { view: "roadmap", label: "Listas" },
     ],
@@ -52,10 +53,32 @@ export const SHORTCUT_VIEWS: View[] = NAV_GROUPS.flatMap((group) =>
 /** Título visible de cada vista. */
 export const VIEW_LABELS: Record<View, string> = {
   today: "Hoy",
-  notes: "Notas",
+  pages: "Páginas",
   todos: "Tareas",
   roadmap: "Listas",
   habits: "Hábitos",
   study: "Enfoque",
   settings: "Configuración",
 };
+
+/**
+ * Dónde está la app: una vista y, en "pages", opcionalmente una página
+ * concreta. Sin `pageId`, "pages" es el índice (buscador y papelera).
+ * Cualquier función que necesite abrir una página (la búsqueda global, un
+ * enlace interno…) navega con `{ view: "pages", pageId }`.
+ */
+export interface Location {
+  view: View;
+  pageId?: string;
+}
+
+/** Lo que acepta `navigate`: una vista suelta o una ubicación completa. */
+export type NavigateTarget = View | Location;
+
+export function toLocation(target: NavigateTarget): Location {
+  return typeof target === "string" ? { view: target } : target;
+}
+
+export function sameLocation(a: Location, b: Location): boolean {
+  return a.view === b.view && (a.pageId ?? null) === (b.pageId ?? null);
+}

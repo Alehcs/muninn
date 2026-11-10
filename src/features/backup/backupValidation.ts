@@ -4,6 +4,7 @@ import {
   type BackupHabitLogRow,
   type BackupHabitRow,
   type BackupNoteRow,
+  type BackupPageRow,
   type BackupRoadmapItemRow,
   type BackupRoadmapRow,
   type BackupRoadmapSectionRow,
@@ -167,6 +168,7 @@ const TABLE_LABELS: Record<string, string> = {
   roadmaps: "listas",
   roadmap_sections: "secciones de listas",
   roadmap_items: "items de listas",
+  pages: "páginas",
 };
 
 /**
@@ -266,6 +268,22 @@ const NOTE_SPEC: RowSpec<BackupNoteRow> = {
   updated_at: "id",
 };
 
+const PAGE_SPEC: RowSpec<BackupPageRow> = {
+  id: "id",
+  parent_id: "text?",
+  title: "text",
+  icon: "text?",
+  content: "text",
+  content_format: "text",
+  kind: "text",
+  properties: "text",
+  pinned: "bool",
+  sort_order: "int",
+  deleted_at: "text?",
+  created_at: "id",
+  updated_at: "id",
+};
+
 const APP_METADATA_SPEC: RowSpec<BackupAppMetadataRow> = {
   key: "id",
   value: "text",
@@ -277,7 +295,7 @@ export function validateBackupFile(value: unknown): BackupFile {
   if (!isObject(value.metadata)) throw new Error("Falta metadata del backup.");
 
   const version = value.metadata.backupVersion;
-  if (version !== 1 && version !== 2) {
+  if (version !== 1 && version !== 2 && version !== 3) {
     throw new Error("La versión del backup no es compatible.");
   }
   if (value.metadata.app !== "Aurhabits") {
@@ -331,8 +349,7 @@ export function validateBackupFile(value: unknown): BackupFile {
     };
   }
 
-  return {
-    metadata: { backupVersion: 2, exportedAt, app: "Aurhabits" },
+  const workspace = {
     habits,
     habit_logs,
     roadmaps: validateRows(value.roadmaps, "roadmaps", ROADMAP_SPEC, "id"),
@@ -356,5 +373,30 @@ export function validateBackupFile(value: unknown): BackupFile {
       APP_METADATA_SPEC,
       "key",
     ),
+  };
+
+  if (version === 2) {
+    return {
+      metadata: { backupVersion: 2, exportedAt, app: "Aurhabits" },
+      ...workspace,
+    };
+  }
+
+  const pages = validateRows(value.pages, "pages", PAGE_SPEC, "id");
+  for (const page of pages) {
+    if (page.content_format !== "markdown" && page.content_format !== "plain") {
+      throw new Error(`La página "${page.id}" tiene un formato de contenido desconocido.`);
+    }
+    try {
+      if (!isObject(JSON.parse(page.properties))) throw new Error("no es un objeto");
+    } catch {
+      throw new Error(`La página "${page.id}" tiene propiedades que no son JSON válido.`);
+    }
+  }
+
+  return {
+    metadata: { backupVersion: 3, exportedAt, app: "Aurhabits" },
+    ...workspace,
+    pages,
   };
 }

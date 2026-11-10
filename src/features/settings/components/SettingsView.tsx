@@ -4,7 +4,7 @@ import { Page } from "@/components/PageHeader";
 import ThemeModeSelector from "@/features/theme/components/ThemeModeSelector";
 import { useTheme } from "@/features/theme/ThemeContext";
 import type { HabitsStore } from "@/features/habits/hooks/useHabits";
-import { isFullBackup, type BackupFile } from "@/features/backup/backupTypes";
+import { hasPages, isFullBackup, type BackupFile } from "@/features/backup/backupTypes";
 import { isTauri } from "@/lib/platform";
 import {
   listSnapshots,
@@ -36,8 +36,12 @@ function describeBackup(backup: BackupFile): string {
   ];
 
   if (isFullBackup(backup)) {
+    // Un backup v2 no trae páginas: se reconstruyen desde sus notas.
+    const pageCount = hasPages(backup)
+      ? backup.pages.filter((page) => page.deleted_at === null).length
+      : backup.notes.length;
     parts.push(
-      plural(backup.notes.length, "nota", "notas"),
+      plural(pageCount, "página", "páginas"),
       plural(backup.todo_items.length, "tarea", "tareas"),
       `${plural(backup.roadmaps.length, "lista", "listas")} (${plural(
         backup.roadmap_items.length,
@@ -253,7 +257,7 @@ export default function SettingsView({ store }: SettingsViewProps) {
         <h3 className="font-medium">Backup local</h3>
         <p className="mt-1 text-sm text-text-muted">
           El archivo JSON incluye todos tus datos: hábitos y sus registros,
-          notas, tareas y listas.
+          páginas, tareas y listas.
         </p>
 
         <div className="mt-4 flex flex-wrap gap-2">
@@ -279,8 +283,8 @@ export default function SettingsView({ store }: SettingsViewProps) {
           <h3 className="font-medium">Confirmar importación</h3>
           <p className="mt-2 text-sm text-text-muted">
             {isFullBackup(pendingBackup)
-              ? "Esta acción reemplazará todos tus datos actuales (hábitos, registros, notas, tareas y listas) por los del backup seleccionado."
-              : "Este backup es de una versión anterior y solo contiene hábitos y registros. Se reemplazarán esos datos; tus notas, tareas y listas actuales no se tocarán."}
+              ? "Esta acción reemplazará todos tus datos actuales (hábitos, registros, páginas, tareas y listas) por los del backup seleccionado."
+              : "Este backup es de una versión anterior y solo contiene hábitos y registros. Se reemplazarán esos datos; tus páginas, tareas y listas actuales no se tocarán."}
           </p>
           <p className="mt-3 text-sm text-text-muted">
             Backup: {describeBackup(pendingBackup)} · exportado el{" "}

@@ -12,6 +12,7 @@ const EXPECTED_TABLES = [
   "habit_logs",
   "habits",
   "notes",
+  "pages",
   "roadmap_items",
   "roadmap_sections",
   "roadmaps",
@@ -145,10 +146,11 @@ describe("migraciones", () => {
   it("beforeMigrate se invoca una vez cuando hay migraciones pendientes sobre datos existentes", async () => {
     const { db } = await createTestDatabase();
     await runMigrations(db);
+    const base = CURRENT_SCHEMA_VERSION;
 
     // Simula una versión futura: el runner usa MIGRATIONS, así que añadimos una.
     MIGRATIONS.push({
-      version: CURRENT_SCHEMA_VERSION + 1,
+      version: base + 1,
       name: "prueba",
       async up(target) {
         await target.execute("CREATE TABLE IF NOT EXISTS prueba (id TEXT)");
@@ -161,10 +163,93 @@ describe("migraciones", () => {
           calls.push([from, to]);
         },
       });
-      expect(calls).toEqual([[1, 2]]);
-      expect(await userVersion(db)).toBe(2);
+      expect(calls).toEqual([[base, base + 1]]);
+      expect(await userVersion(db)).toBe(base + 1);
     } finally {
       MIGRATIONS.pop();
     }
+  });
+
+  describe("migración 2: páginas", () => {
+    const NOTES: [string, string, string, string | null, number, string, string][] = [
+      ["n1", "Título  con espacios ", "línea 1\n\n  línea 2 con *marcas* y https://x.test/a?b=1\r\ncrlf\t\n", "ideas", 1, "2026-01-01T10:00:00.000Z", "2026-02-03T11:12:13.000Z"],
+      ["n2", "Sin categoría", "", null, 0, "2026-01-02T00:00:00.000Z", "2026-01-02T00:00:00.000Z"],
+      ["n3", "Categoría vacía", "x", "", 0, "2026-01-03T00:00:00.000Z", "2026-01-04T00:00:00.000Z"],
+      ["n4", "Comillas \"'", "Ñandú ✓ 日本語 \u{1F600} 'comillas' \"dobles\"", "a\"b", 0, "2026-01-05T00:00:00.000Z", "2026-01-05T00:00:00.000Z"],
+    ];
+
+    async function dbAtV1WithNotes() {
+      const test = await createTestDatabase();
+      // Una base en la versión 1: solo la migración 1 aplicada.
+      await MIGRATIONS[0].up(test.db);
+      await test.db.execute("PRAGMA user_version = 1");
+      for (const note of NOTES) {
+        await test.db.execute("INSERT INTO notes VALUES ($1,$2,$3,$4,$5,$6,$7)", note);
+      }
+      return test;
+    }
+
+    it("copia cada nota a pages sin alterar título, contenido, fijado ni fechas", async () => {
+      const { db } = await dbAtV1WithNotes();
+      await runMigrations(db);
+
+      const pages = await db.select<Record<string, unknown>[]>(
+        "SELECT * FROM pages ORDER BY id",
+      );
+      expect(pages).toHaveLength(NOTES.length);
+      NOTES.forEach((note, index) => {
+        const page = pages[index];
+        expect(page.id).toBe(note[0]);
+        expect(page.title).toBe(note[1]);
+        expect(page.content).toBe(note[2]);
+        expect(page.pinned).toBe(note[4]);
+        expect(page.created_at).toBe(note[5]);
+        expect(page.updated_at).toBe(note[6]);
+        expect(page.content_format).toBe("plain");
+        expect(page.kind).toBe("page");
+        expect(page.parent_id).toBeNull();
+        expect(page.deleted_at).toBeNull();
+        expect(page.sort_order).toBe(0);
+      });
+    });
+
+    it("la categoría pasa a properties como JSON; sin categoría queda {}", async () => {
+      const { db } = await dbAtV1WithNotes();
+      await runMigrations(db);
+
+      const rows = await db.select<{ id: string; properties: string }[]>(
+        "SELECT id, properties FROM pages ORDER BY id",
+      );
+      const byId = Object.fromEntries(rows.map((row) => [row.id, row.properties]));
+      expect(JSON.parse(byId.n1)).toEqual({ categoria: "ideas" });
+      expect(JSON.parse(byId.n2)).toEqual({});
+      expect(JSON.parse(byId.n3)).toEqual({});
+      expect(JSON.parse(byId.n4)).toEqual({ categoria: 'a"b' });
+    });
+
+    it("notes queda exactamente igual", async () => {
+      const { db } = await dbAtV1WithNotes();
+      const before = await db.select<unknown[]>("SELECT * FROM notes ORDER BY id");
+      await runMigrations(db);
+      expect(await db.select<unknown[]>("SELECT * FROM notes ORDER BY id")).toEqual(before);
+    });
+
+    it("ejecutarla dos veces no duplica ni pisa páginas editadas", async () => {
+      const { db } = await dbAtV1WithNotes();
+      await runMigrations(db);
+      await db.execute(
+        "UPDATE pages SET content = 'editado', content_format = 'markdown' WHERE id = 'n1'",
+      );
+      // Fuerza la repetición de la migración 2.
+      await db.execute("PRAGMA user_version = 1");
+      await runMigrations(db);
+
+      const count = await db.select<{ n: number }[]>("SELECT COUNT(*) AS n FROM pages");
+      expect(count[0].n).toBe(NOTES.length);
+      const page = await db.select<{ content: string; content_format: string }[]>(
+        "SELECT content, content_format FROM pages WHERE id = 'n1'",
+      );
+      expect(page[0]).toEqual({ content: "editado", content_format: "markdown" });
+    });
   });
 });

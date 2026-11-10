@@ -1,0 +1,196 @@
+/* Tema del editor: los colores y tipografías son los de la app (tokens que
+   fija useTimeTheme en <html>), así que cambian solos con mañana/tarde/noche.
+   No se carga ninguna fuente ajena. */
+
+.page-editor .milkdown {
+  --crepe-color-background: var(--color-bg);
+  --crepe-color-on-background: var(--color-text);
+  --crepe-color-surface: var(--color-surface);
+  --crepe-color-surface-low: var(--color-surface);
+  --crepe-color-on-surface: var(--color-text);
+  --crepe-color-on-surface-variant: var(--color-text-muted);
+  --crepe-color-outline: var(--color-text-muted);
+  --crepe-color-primary: var(--color-accent);
+  --crepe-color-secondary: var(--color-surface-hover);
+  --crepe-color-on-secondary: var(--color-text);
+  --crepe-color-inverse: var(--color-text);
+  --crepe-color-on-inverse: var(--color-bg);
+  --crepe-color-inline-code: var(--color-text);
+  --crepe-color-error: var(--color-danger);
+  --crepe-color-hover: var(--color-surface-hover);
+  --crepe-color-selected: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  --crepe-color-inline-area: var(--color-surface-hover);
+
+  --crepe-base-font-size: 16px;
+  --crepe-font-title: inherit;
+  --crepe-font-default: inherit;
+  --crepe-font-code: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --crepe-shadow-1: 0 2px 10px rgb(0 0 0 / 0.18);
+  --crepe-shadow-2: 0 4px 16px rgb(0 0 0 / 0.22);
+
+  position: relative;
+  font-family: inherit;
+  font-size: 1rem;
+  color: var(--color-text);
+  background: transparent;
+}
+
+.page-editor .milkdown .ProseMirror {
+  min-height: 40vh;
+  padding: 0 0 30vh;
+  outline: none;
+  line-height: 1.65;
+  word-break: break-word;
+}
+
+.page-editor .milkdown .ProseMirror > *:first-child {
+  margin-top: 0;
+}
+
+/* Bloques */
+.page-editor .milkdown .ProseMirror p {
+  padding: 3px 0;
+  line-height: 1.65;
+}
+
+.page-editor .milkdown .ProseMirror h1,
+.page-editor .milkdown .ProseMirror h2,
+.page-editor .milkdown .ProseMirror h3,
+.page-editor .milkdown .ProseMirror h4 {
+  font-family: inherit;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  padding: 2px 0;
+}
+
+.page-editor .milkdown .ProseMirror h1 { font-size: 1.75rem; line-height: 1.25; margin-top: 1.6em; }
+.page-editor .milkdown .ProseMirror h2 { font-size: 1.4rem; line-height: 1.3; margin-top: 1.4em; }
+.page-editor .milkdown .ProseMirror h3 { font-size: 1.15rem; line-height: 1.35; margin-top: 1.2em; }
+.page-editor .milkdown .ProseMirror h4,
+.page-editor .milkdown .ProseMirror h5,
+.page-editor .milkdown .ProseMirror h6 { font-size: 1rem; line-height: 1.4; margin-top: 1em; }
+
+.page-editor .milkdown .ProseMirror a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.page-editor .milkdown .ProseMirror strong { font-weight: 650; }
+
+.page-editor .milkdown .ProseMirror code {
+  font-family: var(--crepe-font-code);
+  font-size: 0.875em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  color: var(--color-text);
+  background: var(--color-surface-hover);
+  display: inline;
+  line-height: inherit;
+}
+
+.page-editor .milkdown .ProseMirror pre {
+  margin: 6px 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  overflow-x: auto;
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.page-editor .milkdown .ProseMirror pre code {
+  padding: 0;
+  background: transparent;
+  font-size: inherit;
+}
+
+.page-editor .milkdown .ProseMirror blockquote {
+  position: relative;
+  margin: 6px 0;
+  padding: 0 0 0 18px;
+  color: var(--color-text-muted);
+}
+
+.page-editor .milkdown .ProseMirror blockquote::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 2px;
+  bottom: 2px;
+  width: 3px;
+  border-radius: 99px;
+  background: var(--color-border);
+}
+
+.page-editor .milkdown .ProseMirror hr {
+  border: none;
+  height: 13px;
+  padding: 6px 0;
+  background-color: var(--color-border);
+  background-clip: content-box;
+}
+
+.page-editor .milkdown .ProseMirror ul,
+.page-editor .milkdown .ProseMirror ol {
+  padding: 0;
+  margin: 0;
+}
+
+.page-editor .milkdown .ProseMirror li {
+  padding: 0;
+}
+
+.page-editor .milkdown .milkdown-list-item-block li {
+  gap: 6px;
+}
+
+.page-editor .milkdown .milkdown-list-item-block li .label-wrapper,
+.page-editor .milkdown .milkdown-list-item-block li .label-wrapper .label {
+  height: 27px;
+  width: 22px;
+}
+
+.page-editor .milkdown .milkdown-list-item-block li .label-wrapper .label {
+  padding: 3px 0;
+}
+
+/* Tablas */
+.page-editor .milkdown .ProseMirror table {
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+
+.page-editor .milkdown .ProseMirror th,
+.page-editor .milkdown .ProseMirror td {
+  border: 1px solid var(--color-border);
+  padding: 4px 10px;
+}
+
+.page-editor .milkdown .ProseMirror th {
+  background: var(--color-surface);
+  font-weight: 600;
+}
+
+/* Marcador de posición y selección */
+.page-editor .milkdown .ProseMirror .crepe-placeholder::before {
+  color: var(--color-text-muted);
+  opacity: 0.7;
+}
+
+.page-editor .milkdown .ProseMirror *::selection {
+  background: color-mix(in srgb, var(--color-accent) 28%, transparent);
+}
+
+/* Menú "/", asa de bloque y barra flotante: superficies de la app. */
+.page-editor .milkdown .milkdown-slash-menu,
+.page-editor .milkdown .milkdown-toolbar,
+.page-editor .milkdown .milkdown-link-preview,
+.page-editor .milkdown .milkdown-link-edit {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+}

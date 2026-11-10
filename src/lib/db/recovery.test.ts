@@ -40,4 +40,31 @@ describe.skipIf(files.length === 0)("migraciones sobre copias reales (en memoria
     const version = await db.select<{ user_version: number }[]>("PRAGMA user_version");
     expect(version[0].user_version).toBe(CURRENT_SCHEMA_VERSION);
   });
+
+  it.each(files)("%s: tras migrar hay tantas páginas como notas, con contenido idéntico", async (file) => {
+    const bytes = new Uint8Array(readFileSync(join(RECOVERY_DIR, file)));
+    const { db } = await createTestDatabase(bytes);
+    await runMigrations(db);
+
+    const notes = await db.select<{ n: number }[]>("SELECT COUNT(*) AS n FROM notes");
+    const pages = await db.select<{ n: number }[]>("SELECT COUNT(*) AS n FROM pages");
+    expect(pages[0].n).toBe(notes[0].n);
+
+    // Se compara dentro de SQLite para no sacar el contenido de las notas.
+    const different = await db.select<{ n: number }[]>(
+      `SELECT COUNT(*) AS n
+         FROM notes JOIN pages ON pages.id = notes.id
+        WHERE NOT (pages.title = notes.title
+               AND pages.content = notes.content
+               AND pages.pinned = notes.pinned
+               AND pages.created_at = notes.created_at
+               AND pages.updated_at = notes.updated_at
+               AND pages.content_format = 'plain')`,
+    );
+    expect(different[0].n).toBe(0);
+    const joined = await db.select<{ n: number }[]>(
+      "SELECT COUNT(*) AS n FROM notes JOIN pages ON pages.id = notes.id",
+    );
+    expect(joined[0].n).toBe(notes[0].n);
+  });
 });

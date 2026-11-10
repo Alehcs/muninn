@@ -3,11 +3,12 @@ import type { HabitCategory, HabitType, HabitUnit } from "@/features/habits/type
 /**
  * Versión que escribe la app al exportar.
  * - v1: solo hábitos y sus registros.
- * - v2: todos los datos (hábitos, registros, roadmaps, tareas, notas y metadata).
+ * - v2: hábitos, registros, roadmaps, tareas, notas y metadata (sin páginas).
+ * - v3: todo lo de v2 más `pages` (las notas se siguen exportando).
  */
-export const BACKUP_VERSION = 2;
+export const BACKUP_VERSION = 3;
 
-export interface BackupMetadata<Version extends 1 | 2 = 1 | 2> {
+export interface BackupMetadata<Version extends 1 | 2 | 3 = 1 | 2 | 3> {
   backupVersion: Version;
   exportedAt: string;
   app: "Aurhabits";
@@ -92,6 +93,22 @@ export interface BackupNoteRow {
   updated_at: string;
 }
 
+export interface BackupPageRow {
+  id: string;
+  parent_id: string | null;
+  title: string;
+  icon: string | null;
+  content: string;
+  content_format: string;
+  kind: string;
+  properties: string;
+  pinned: number;
+  sort_order: number;
+  deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface BackupAppMetadataRow {
   key: string;
   value: string;
@@ -114,7 +131,14 @@ export interface BackupWorkspaceTables {
   app_metadata: BackupAppMetadataRow[];
 }
 
-export type BackupTables = BackupHabitTables & BackupWorkspaceTables;
+/** Tabla añadida en la versión 3. */
+export interface BackupPageTables {
+  pages: BackupPageRow[];
+}
+
+export type BackupTables = BackupHabitTables &
+  BackupWorkspaceTables &
+  BackupPageTables;
 export type BackupTableName = keyof BackupTables;
 
 /** Backup antiguo: solo hábitos y registros. */
@@ -122,15 +146,28 @@ export interface BackupFileV1 extends BackupHabitTables {
   metadata: BackupMetadata<1>;
 }
 
-/** Backup completo. */
-export interface BackupFileV2 extends BackupTables {
+/** Backup completo anterior a las páginas (las páginas se reconstruyen de `notes`). */
+export interface BackupFileV2 extends BackupHabitTables, BackupWorkspaceTables {
   metadata: BackupMetadata<2>;
 }
 
-export type BackupFile = BackupFileV1 | BackupFileV2;
+/** Backup completo actual. */
+export interface BackupFileV3 extends BackupTables {
+  metadata: BackupMetadata<3>;
+}
 
-export function isFullBackup(backup: BackupFile): backup is BackupFileV2 {
-  return backup.metadata.backupVersion === 2;
+export type BackupFile = BackupFileV1 | BackupFileV2 | BackupFileV3;
+
+/** ¿Trae roadmaps, tareas y notas? (v2 y v3; el v1 solo hábitos). */
+export function isFullBackup(
+  backup: BackupFile,
+): backup is BackupFileV2 | BackupFileV3 {
+  return backup.metadata.backupVersion >= 2;
+}
+
+/** ¿Trae la tabla `pages`? Solo desde la v3. */
+export function hasPages(backup: BackupFile): backup is BackupFileV3 {
+  return backup.metadata.backupVersion === 3;
 }
 
 /**
@@ -207,6 +244,21 @@ export const BACKUP_TABLE_COLUMNS: {
     "created_at",
     "updated_at",
   ],
+  pages: [
+    "id",
+    "parent_id",
+    "title",
+    "icon",
+    "content",
+    "content_format",
+    "kind",
+    "properties",
+    "pinned",
+    "sort_order",
+    "deleted_at",
+    "created_at",
+    "updated_at",
+  ],
   app_metadata: ["key", "value", "updated_at"],
 };
 
@@ -222,5 +274,11 @@ export const ALL_TABLES: readonly BackupTableName[] = [
   "roadmaps",
   "todo_items",
   "notes",
+  "pages",
   "app_metadata",
 ];
+
+/** Tablas de un backup v2: todas menos `pages`. */
+export const V2_TABLES: readonly BackupTableName[] = ALL_TABLES.filter(
+  (table) => table !== "pages",
+);

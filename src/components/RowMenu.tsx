@@ -21,6 +21,11 @@ interface RowMenuProps {
   icon?: LucideIcon;
   disabled?: boolean;
   className?: string;
+  /**
+   * Coloca el menú con `position: fixed` junto al botón, para que no lo
+   * recorte un contenedor con scroll (p. ej. la barra lateral).
+   */
+  floating?: boolean;
 }
 
 /**
@@ -34,8 +39,10 @@ export default function RowMenu({
   icon = MoreHorizontal,
   disabled,
   className,
+  floating,
 }: RowMenuProps) {
   const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState<{ top: number; right: number } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuId = useId();
@@ -45,9 +52,18 @@ export default function RowMenu({
     const handlePointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
     };
+    const handleMove = () => setOpen(false);
     document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, [open]);
+    if (floating) {
+      window.addEventListener("scroll", handleMove, true);
+      window.addEventListener("resize", handleMove);
+    }
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("scroll", handleMove, true);
+      window.removeEventListener("resize", handleMove);
+    };
+  }, [open, floating]);
 
   useEffect(() => {
     if (open) {
@@ -110,7 +126,16 @@ export default function RowMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => {
+          if (floating && triggerRef.current) {
+            const rect = triggerRef.current.getBoundingClientRect();
+            setAnchor({
+              top: rect.bottom + 4,
+              right: window.innerWidth - rect.right,
+            });
+          }
+          setOpen((current) => !current);
+        }}
       />
       {open && (
         <div
@@ -118,7 +143,15 @@ export default function RowMenu({
           role="menu"
           aria-label={label}
           onKeyDown={handleMenuKeyDown}
-          className="absolute right-0 top-full z-30 mt-1 flex min-w-36 flex-col rounded-lg border border-border bg-surface p-1 shadow-lg"
+          style={
+            floating && anchor
+              ? { position: "fixed", top: anchor.top, right: anchor.right }
+              : undefined
+          }
+          className={cn(
+            "z-30 flex min-w-36 flex-col rounded-lg border border-border bg-surface p-1 shadow-lg",
+            !(floating && anchor) && "absolute right-0 top-full mt-1",
+          )}
         >
           {items.map((item) => (
             <button
@@ -131,7 +164,7 @@ export default function RowMenu({
                 item.onSelect();
               }}
               className={cn(
-                "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40",
+                "flex items-center gap-2 whitespace-nowrap rounded-md px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40",
                 item.danger ? "text-danger" : "text-text",
               )}
             >

@@ -1,9 +1,12 @@
 import { runBatch, type BatchStatement } from "@/lib/db/batch";
 import { getDatabase } from "@/lib/db/database";
+import { COPY_NOTES_TO_PAGES_SQL } from "@/lib/db/migrations";
 import {
   ALL_TABLES,
   BACKUP_TABLE_COLUMNS,
   HABIT_TABLES,
+  V2_TABLES,
+  hasPages,
   isFullBackup,
   type BackupFile,
   type BackupTableName,
@@ -19,6 +22,7 @@ const EXPORT_ORDER: Record<BackupTableName, string> = {
   roadmap_items: "section_order ASC, order_index ASC, id ASC",
   todo_items: "order_index ASC, created_at ASC, id ASC",
   notes: "created_at ASC, id ASC",
+  pages: "created_at ASC, id ASC",
   app_metadata: "key ASC",
 };
 
@@ -46,18 +50,23 @@ export async function readBackupData(): Promise<BackupTables> {
     roadmap_items: await readTable("roadmap_items"),
     todo_items: await readTable("todo_items"),
     notes: await readTable("notes"),
+    pages: await readTable("pages"),
     app_metadata: await readTable("app_metadata"),
   };
 }
 
 /**
  * Reemplaza los datos locales por los del backup.
- * Un backup v1 solo trae hábitos y registros, así que solo toca esas dos
- * tablas: notas, tareas y roadmaps se quedan como están.
+ * - v3: reemplaza todas las tablas, `pages` incluida.
+ * - v2 (sin `pages`): reemplaza sus tablas y reconstruye `pages` a partir de
+ *   las notas importadas, igual que la migración 2.
+ * - v1: solo hábitos y registros; notas, páginas, tareas y roadmaps se quedan
+ *   como están.
  */
 export async function replaceBackupData(backup: BackupFile): Promise<void> {
   const full = isFullBackup(backup);
-  const tables = full ? ALL_TABLES : HABIT_TABLES;
+  const withPages = hasPages(backup);
+  const tables = withPages ? ALL_TABLES : full ? V2_TABLES : HABIT_TABLES;
   // En un backup v1 las tablas nuevas no existen; no se leen porque `tables`
   // se limita a las de hábitos.
   const rowsByTable: Partial<Record<BackupTableName, readonly object[]>> = backup;
@@ -65,6 +74,8 @@ export async function replaceBackupData(backup: BackupFile): Promise<void> {
   const statements: BatchStatement[] = tables.map((table) => ({
     sql: `DELETE FROM ${table}`,
   }));
+  // Un v2 no trae páginas: se vacían para reconstruirlas desde las notas.
+  if (full && !withPages) statements.push({ sql: "DELETE FROM pages" });
 
   // Se insertan en orden inverso: primero los padres, luego lo que depende.
   for (const table of [...tables].reverse()) {
@@ -79,6 +90,10 @@ export async function replaceBackupData(backup: BackupFile): Promise<void> {
         params: columns.map((column) => values[column] ?? null),
       });
     }
+  }
+
+  if (full && !withPages) {
+    statements.push({ sql: COPY_NOTES_TO_PAGES_SQL });
   }
 
   if (full) {

@@ -20,7 +20,7 @@ function key(k: string, extra: Partial<KeyLike> = {}): KeyLike {
 
 describe("resolveShortcut", () => {
   it("Cmd/Ctrl+1…6 navegan en el orden de la barra lateral", () => {
-    const views = ["today", "notes", "todos", "roadmap", "habits", "study"];
+    const views = ["today", "pages", "todos", "roadmap", "habits", "study"];
     views.forEach((view, index) => {
       expect(resolveShortcut(key(String(index + 1)))).toEqual({
         type: "navigate",
@@ -29,7 +29,7 @@ describe("resolveShortcut", () => {
     });
     expect(
       resolveShortcut(key("2", { metaKey: false, ctrlKey: true })),
-    ).toEqual({ type: "navigate", view: "notes" });
+    ).toEqual({ type: "navigate", view: "pages" });
   });
 
   it("Cmd/Ctrl+, abre Configuración", () => {

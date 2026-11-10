@@ -7,13 +7,14 @@ import SettingsView from "@/features/settings/components/SettingsView";
 import StudyView from "@/features/study/components/StudyView";
 import RoadmapView from "@/features/roadmap/components/RoadmapView";
 import TodoListView from "@/features/todos/components/TodoListView";
-import NotesView from "@/features/notes/components/NotesView";
+import PageView from "@/features/pages/components/PageView";
+import { PagesProvider } from "@/features/pages/hooks/usePages";
 import Button from "@/components/Button";
 import { ThemeProvider } from "@/features/theme/ThemeContext";
 import { PomodoroProvider } from "@/features/study/PomodoroContext";
 import { HabitTimerProvider } from "@/features/timer/HabitTimerContext";
 import { useHabits } from "@/features/habits/hooks/useHabits";
-import type { View } from "@/app/navigation";
+import type { Location } from "@/app/navigation";
 
 function CenteredNotice({ children }: { children: ReactNode }) {
   return (
@@ -24,7 +25,8 @@ function CenteredNotice({ children }: { children: ReactNode }) {
 }
 
 export default function App() {
-  const [view, setView] = useState<View>("today");
+  const [location, setLocation] = useState<Location>({ view: "today" });
+  const { view } = location;
   const store = useHabits();
 
   return (
@@ -32,7 +34,8 @@ export default function App() {
       {/* Los timers viven aquí para seguir corriendo al cambiar de vista. */}
       <PomodoroProvider>
         <HabitTimerProvider onComplete={store.addMinutes}>
-          <MainLayout view={view} onNavigate={setView}>
+          <PagesProvider>
+          <MainLayout location={location} onNavigate={setLocation}>
             {store.status === "loading" ? (
               <CenteredNotice>Cargando tus hábitos…</CenteredNotice>
             ) : store.status === "error" ? (
@@ -50,14 +53,15 @@ export default function App() {
               <RoadmapView />
             ) : view === "todos" ? (
               <TodoListView />
-            ) : view === "notes" ? (
-              <NotesView />
+            ) : view === "pages" ? (
+              <PageView />
             ) : view === "habits" ? (
               <HabitsHubView store={store} />
             ) : (
               <SettingsView store={store} />
             )}
           </MainLayout>
+          </PagesProvider>
         </HabitTimerProvider>
       </PomodoroProvider>
     </ThemeProvider>

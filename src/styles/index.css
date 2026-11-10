@@ -66,6 +66,11 @@ body {
   outline-offset: 0;
 }
 
+/* El título de una página se edita "en el sitio": sin anillo de foco. */
+.page-title:focus-visible {
+  outline: none;
+}
+
 /* Respeta la preferencia de menos movimiento. */
 @media (prefers-reduced-motion: reduce) {
   *,

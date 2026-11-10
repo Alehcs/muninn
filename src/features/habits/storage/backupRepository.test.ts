@@ -40,6 +40,12 @@ async function seed({ db }: TestDatabase) {
     [T],
   );
   await db.execute(`INSERT INTO app_metadata VALUES ('clave','valor',$1)`, [T]);
+  await db.execute(
+    `INSERT INTO pages VALUES
+       ('p1',NULL,'Madre','📘','# Hola\n\ncuerpo','markdown','page','{"categoria":"x"}',1,0,NULL,$1,$1),
+       ('p2','p1','Hija',NULL,'texto plano','plain','page','{}',0,1,$1,$1,$1)`,
+    [T],
+  );
 }
 
 /** replaceBackupData marca el roadmap como sembrado; se compara sin esa clave. */
@@ -73,7 +79,7 @@ describe("backup: ida y vuelta", () => {
     expect((await readBackupData()).habits).toHaveLength(0);
 
     const backup: BackupFile = {
-      metadata: { backupVersion: 2, exportedAt: T, app: "Aurhabits" },
+      metadata: { backupVersion: 3, exportedAt: T, app: "Aurhabits" },
       ...first,
     };
     await replaceBackupData(backup);
@@ -81,5 +87,61 @@ describe("backup: ida y vuelta", () => {
     const second = await readBackupData();
     expect(withoutSeedFlag(second)).toEqual(withoutSeedFlag(first));
     expect(second.app_metadata.some((row) => row.key === "roadmap_seeded")).toBe(true);
+  });
+
+  it("v3: reemplaza todo, páginas incluidas (con papelera y formato)", async () => {
+    await seed(test);
+    const first = await readBackupData();
+    expect(first.pages).toHaveLength(2);
+    await test.db.execute("UPDATE pages SET title = 'cambiado'");
+    await test.db.execute("INSERT INTO pages (id,title,created_at,updated_at) VALUES ('p9','extra',$1,$1)", [T]);
+
+    await replaceBackupData({
+      metadata: { backupVersion: 3, exportedAt: T, app: "Aurhabits" },
+      ...first,
+    });
+    expect((await readBackupData()).pages).toEqual(first.pages);
+  });
+
+  it("v2 (sin páginas): reemplaza sus tablas y reconstruye pages desde las notas", async () => {
+    await seed(test);
+    const data = await readBackupData();
+    const { pages: _pages, ...v2Tables } = data;
+    void _pages;
+    await test.db.execute("INSERT INTO pages (id,title,created_at,updated_at) VALUES ('p9','extra',$1,$1)", [T]);
+
+    await replaceBackupData({
+      metadata: { backupVersion: 2, exportedAt: T, app: "Aurhabits" },
+      ...v2Tables,
+    });
+
+    const after = await readBackupData();
+    // Las páginas anteriores desaparecen y salen de las notas importadas.
+    expect(after.pages.map((page) => page.id)).toEqual(["n1", "n2"]);
+    expect(after.pages.map((page) => page.content)).toEqual(
+      after.notes.map((note) => note.content),
+    );
+    expect(after.pages.every((page) => page.content_format === "plain")).toBe(true);
+    expect(JSON.parse(after.pages[0].properties)).toEqual({ categoria: "cat" });
+    expect(after.pages[0].pinned).toBe(1);
+  });
+
+  it("v1: solo toca hábitos y registros; notas y páginas se quedan", async () => {
+    await seed(test);
+    const before = await readBackupData();
+
+    await replaceBackupData({
+      metadata: { backupVersion: 1, exportedAt: T, app: "Aurhabits" },
+      habits: [],
+      habit_logs: [],
+    });
+
+    const after = await readBackupData();
+    expect(after.habits).toHaveLength(0);
+    expect(after.habit_logs).toHaveLength(0);
+    expect(after.pages).toEqual(before.pages);
+    expect(after.notes).toEqual(before.notes);
+    expect(after.todo_items).toEqual(before.todo_items);
+    expect(after.roadmap_items).toEqual(before.roadmap_items);
   });
 });

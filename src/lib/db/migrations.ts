@@ -145,6 +145,50 @@ export interface Migration {
   up(db: SqlDatabase): Promise<void>;
 }
 
+/**
+ * Tabla `pages` (migración 2). Sustituye a `notes` como lugar donde se
+ * escribe; `notes` se conserva intacta como respaldo histórico.
+ */
+const PAGES_SCHEMA: string[] = [
+  `CREATE TABLE IF NOT EXISTS pages (
+    id TEXT PRIMARY KEY,
+    parent_id TEXT,
+    title TEXT NOT NULL,
+    icon TEXT,
+    content TEXT NOT NULL DEFAULT '',
+    content_format TEXT NOT NULL DEFAULT 'markdown',
+    kind TEXT NOT NULL DEFAULT 'page',
+    properties TEXT NOT NULL DEFAULT '{}',
+    pinned INTEGER NOT NULL DEFAULT 0,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    deleted_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_pages_parent
+     ON pages (parent_id, sort_order)`,
+  `CREATE INDEX IF NOT EXISTS idx_pages_deleted
+     ON pages (deleted_at)`,
+];
+
+/**
+ * Copia cada fila de `notes` a `pages` sin transformar nada: `id`, `title`,
+ * `content`, `pinned` y las fechas pasan idénticos; `content_format = 'plain'`
+ * (el texto antiguo no es Markdown); la categoría, si existe, va a
+ * `properties` como `{"categoria": "…"}`. `INSERT OR IGNORE`: ejecutarla otra
+ * vez no duplica ni pisa páginas ya editadas. También la usa la importación
+ * de un backup v2 (sin `pages`) para reconstruir las páginas.
+ */
+export const COPY_NOTES_TO_PAGES_SQL = `INSERT OR IGNORE INTO pages
+    (id, parent_id, title, icon, content, content_format, kind, properties,
+     pinned, sort_order, deleted_at, created_at, updated_at)
+  SELECT id, NULL, title, NULL, content, 'plain', 'page',
+         CASE WHEN category IS NOT NULL AND category <> ''
+              THEN json_object('categoria', category)
+              ELSE '{}' END,
+         pinned, 0, NULL, created_at, updated_at
+    FROM notes`;
+
 export const MIGRATIONS: Migration[] = [
   {
     version: 1,
@@ -163,6 +207,17 @@ export const MIGRATIONS: Migration[] = [
       for (const statement of POST_COLUMN_INDEXES) {
         await db.execute(statement);
       }
+    },
+  },
+  {
+    version: 2,
+    name: "páginas con editor Markdown",
+    // Solo añade: crea `pages` y copia `notes`; no borra ni modifica `notes`.
+    async up(db) {
+      for (const statement of PAGES_SCHEMA) {
+        await db.execute(statement);
+      }
+      await db.execute(COPY_NOTES_TO_PAGES_SQL);
     },
   },
 ];

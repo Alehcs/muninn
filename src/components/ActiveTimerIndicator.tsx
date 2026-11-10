@@ -2,11 +2,8 @@ import { Pause, Timer } from "lucide-react";
 import { usePomodoro } from "@/features/study/PomodoroContext";
 import { formatTimer } from "@/features/study/utils/formatTimer";
 import { useHabitTimerContext } from "@/features/timer/HabitTimerContext";
+import { useNavigation } from "@/app/NavigationContext";
 import type { View } from "@/app/navigation";
-
-interface ActiveTimerIndicatorProps {
-  onNavigate: (view: View) => void;
-}
 
 interface Chip {
   key: string;
@@ -24,9 +21,8 @@ const CHIP_CLS =
  * Indicador compacto en la barra lateral de los timers en marcha o en pausa
  * (pomodoro y timer de hábito). Al pulsarlo lleva a su vista.
  */
-export default function ActiveTimerIndicator({
-  onNavigate,
-}: ActiveTimerIndicatorProps) {
+export default function ActiveTimerIndicator() {
+  const { navigate: onNavigate } = useNavigation();
   const { timer: pomodoro } = usePomodoro();
   const { activeTimer: habitTimer } = useHabitTimerContext();
 
