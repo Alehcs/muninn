@@ -7,12 +7,10 @@
 #   ~/Library/Application Support/com.aurhabits.desktop/
 # y cada versión nueva abre la misma base. Aun así, antes de instalar se
 # guarda una copia de la base en la subcarpeta backups/.
-# La versión que estaba instalada se conserva como "Muninn-anterior.app"
-# (solo la última) por si hay que volver atrás.
-#
-# Si existe la app antigua /Applications/Aurhabits.app (el nombre anterior de
-# Muninn), se cierra y se mueve a /Applications/Aurhabits-anterior.app para que
-# no queden dos apps sobre los mismos datos.
+# La versión que estaba instalada (y cualquier copia antigua con el nombre
+# anterior, Aurhabits) va a la Papelera: así en Aplicaciones y en Spotlight
+# solo aparece Muninn, y aún se puede recuperar hasta vaciar la Papelera.
+# Las copias de compilaciones antiguas dentro de target/ se borran.
 
 set -euo pipefail
 
@@ -21,11 +19,15 @@ cd "$(dirname "$0")/.."
 APP_NAME="Muninn"
 PROCESS_NAME="muninn"
 OLD_APP="/Applications/Aurhabits.app"
-OLD_PREVIOUS="/Applications/Aurhabits-anterior.app"
 OLD_PROCESS="aurhabits"
+# Restos de instalaciones anteriores que no deben quedarse en Aplicaciones.
+LEFTOVERS=(
+  "/Applications/Aurhabits.app"
+  "/Applications/Aurhabits-anterior.app"
+  "/Applications/Muninn-anterior.app"
+)
 BUNDLE="src-tauri/target/release/bundle/macos/${APP_NAME}.app"
 DEST="/Applications/${APP_NAME}.app"
-PREVIOUS="/Applications/${APP_NAME}-anterior.app"
 DATA_DIR="${HOME}/Library/Application Support/com.aurhabits.desktop"
 DATABASE="${DATA_DIR}/aurhabits.db"
 
@@ -83,19 +85,42 @@ else
   echo "    Aún no hay base de datos; nada que copiar."
 fi
 
-echo "4/4 Instalando en /Applications…"
-if [ -d "${OLD_APP}" ]; then
-  rm -rf "${OLD_PREVIOUS}"
-  mv "${OLD_APP}" "${OLD_PREVIOUS}"
-  echo "    Aurhabits.app antigua movida a ${OLD_PREVIOUS}"
-fi
-if [ -d "${DEST}" ]; then
-  if [ -d "${PREVIOUS}" ]; then
-    rm -rf "${PREVIOUS}"
+# Mueve una app a la Papelera (recuperable). Si la terminal no tiene permiso
+# para mover apps de Aplicaciones, lo intenta a través de Finder.
+to_trash() {
+  local app="$1"
+  local name
+  name="$(basename "${app}" .app)-$(date +%Y%m%d-%H%M%S).app"
+  if mv "${app}" "${HOME}/.Trash/${name}" 2>/dev/null; then
+    return 0
   fi
-  mv "${DEST}" "${PREVIOUS}"
-fi
+  osascript -e "tell application \"Finder\" to delete (POSIX file \"${app}\")" >/dev/null 2>&1
+}
+
+echo "4/4 Instalando en /Applications…"
+for app in "${LEFTOVERS[@]}" "${DEST}"; do
+  if [ -d "${app}" ]; then
+    if to_trash "${app}"; then
+      echo "    A la Papelera: ${app}"
+    else
+      echo "No se pudo mover ${app} a la Papelera (permiso de macOS)." >&2
+      echo "Muévela tú a la Papelera y vuelve a ejecutar. No se instaló nada." >&2
+      exit 1
+    fi
+  fi
+done
 ditto "${BUNDLE}" "${DEST}"
+# La copia compilada dentro de target/ ya no hace falta y Spotlight la
+# mostraría como un segundo Muninn. La próxima compilación la vuelve a crear.
+rm -rf "${BUNDLE}"
+
+# Compilaciones antiguas con otro nombre dentro de target/: Spotlight las
+# indexa como apps, así que se borran (son artefactos de compilación).
+for stale in src-tauri/target/release/bundle/macos/*.app; do
+  if [ "${stale}" != "${BUNDLE}" ] && [ -d "${stale}" ]; then
+    rm -rf "${stale}"
+  fi
+done
 
 echo "Listo. Abriendo ${APP_NAME}…"
 open "${DEST}"
