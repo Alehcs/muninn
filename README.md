@@ -1,4 +1,10 @@
-# Muninn
+<p align="center">
+  <img src="assets/brand/muninn-icon.svg" alt="Logotipo de Muninn: un cuervo sobre la luna" width="140">
+</p>
+
+<h1 align="center">Muninn</h1>
+
+<p align="center">Tu espacio personal, ligero y local: páginas, colecciones, tareas y hábitos.</p>
 
 Muninn es una app de escritorio personal, local y sin conexión, para organizar el día. Todo vive en una base SQLite en tu equipo; no hay backend ni sincronización remota.
 
