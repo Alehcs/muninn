@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
+import { useNavigation } from "@/app/NavigationContext";
 import Button from "@/components/Button";
 import IconButton from "@/components/IconButton";
 import { Page, PageStrip } from "@/components/PageHeader";
@@ -44,12 +45,25 @@ type SectionFormState =
 
 export default function RoadmapView() {
   const roadmap = useRoadmapChecklist();
+  const { location } = useNavigation();
+  const appliedRoadmapRef = useRef<string | undefined>(undefined);
   const [roadmapForm, setRoadmapForm] = useState<RoadmapFormState>({
     open: false,
   });
   const [sectionForm, setSectionForm] = useState<SectionFormState>({
     open: false,
   });
+
+  // Llegar desde la búsqueda global: deja seleccionada la lista pedida (una sola vez por petición).
+  const { status, roadmaps, selectedRoadmapId, selectRoadmap } = roadmap;
+  useEffect(() => {
+    const wanted = location.roadmapId;
+    if (wanted === undefined || status !== "ready" || appliedRoadmapRef.current === wanted) return;
+    appliedRoadmapRef.current = wanted;
+    if (wanted !== selectedRoadmapId && roadmaps.some((item) => item.id === wanted)) {
+      void selectRoadmap(wanted);
+    }
+  }, [location.roadmapId, status, roadmaps, selectedRoadmapId, selectRoadmap]);
 
   const [hideCompleted, setHideCompleted] = usePersistentState(
     HIDE_COMPLETED_KEY,

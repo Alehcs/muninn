@@ -44,6 +44,15 @@ describe("resolveShortcut", () => {
     expect(resolveShortcut(key("N", { shiftKey: true }))).toBeNull();
   });
 
+  it("Cmd/Ctrl+K abre la búsqueda global", () => {
+    expect(resolveShortcut(key("k"))).toEqual({ type: "search" });
+    expect(resolveShortcut(key("K", { metaKey: false, ctrlKey: true }))).toEqual({
+      type: "search",
+    });
+    expect(resolveShortcut(key("k", { shiftKey: true }))).toBeNull();
+    expect(resolveShortcut(key("k", { metaKey: false }))).toBeNull();
+  });
+
   it("ignora teclas sin Cmd/Ctrl, números fuera de rango y Alt", () => {
     expect(resolveShortcut(key("1", { metaKey: false }))).toBeNull();
     expect(resolveShortcut(key("n", { metaKey: false }))).toBeNull();

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
-import { ChevronRight, FolderInput, FilePlus2, Pin, PinOff, Table2, Trash2 } from "lucide-react";
+import { ChevronRight, FileDown, FolderInput, FilePlus2, Pin, PinOff, Table2, Trash2 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import RowMenu from "@/components/RowMenu";
 import { notify } from "@/lib/notify";
+import { exportPageMarkdown } from "@/features/export/exportService";
 import PageTasks from "@/features/todos/components/PageTasks";
 import LazyMarkdownEditor, {
   type MarkdownEditorHandle,
@@ -11,6 +12,7 @@ import LazyMarkdownEditor, {
 import { usePages } from "../hooks/usePages";
 import { usePageCommands } from "../hooks/usePageCommands";
 import { Autosaver, type SaveStatus } from "../utils/autosave";
+import { claimPage, forgetDraft, getDraft, isCurrentOwner } from "../utils/pageDrafts";
 import { getAncestors, getCollectionOf } from "../utils/pageTree";
 import { plainTextToMarkdown } from "../utils/plainTextToMarkdown";
 import { pageCategory, pageTitle, type Page } from "../types";
@@ -55,11 +57,20 @@ export default function PageDocument({ page }: { page: Page }) {
   const commands = usePageCommands();
   const editorRef = useRef<MarkdownEditorHandle>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
+  const addRowRef = useRef<HTMLInputElement>(null);
 
   // Las notas antiguas (texto plano) se convierten solo para mostrarlas.
+  // Si un guardado anterior de esta página falló, se reabre con ese borrador (no con la versión vieja).
+  const [draft] = useState(() => getDraft(page.id));
   const [initialMarkdown] = useState(() =>
-    page.contentFormat === "plain" ? plainTextToMarkdown(page.content) : page.content,
+    draft ??
+    (page.contentFormat === "plain" ? plainTextToMarkdown(page.content) : page.content),
   );
+  // Quien guarda es la última instancia abierta: el reintento de una antigua se descarta.
+  const ownerRef = useRef(0);
+  useEffect(() => {
+    ownerRef.current = claimPage(page.id);
+  }, [page.id]);
   const [title, setTitle] = useState(page.title);
   const titleValue = useRef(page.title);
   const isCollection = page.kind === "collection";
@@ -74,7 +85,10 @@ export default function PageDocument({ page }: { page: Page }) {
   const [bodySaver] = useState(
     () =>
       new Autosaver({
-        save: (markdown) => store.saveContent(page.id, markdown),
+        save: async (markdown) => {
+          if (!isCurrentOwner(page.id, ownerRef.current)) return;
+          await store.saveContent(page.id, markdown);
+        },
         readCurrent: () => editorRef.current?.getMarkdown() ?? null,
         onStatus: setBodyStatus,
         onError: () =>
@@ -147,8 +161,17 @@ export default function PageDocument({ page }: { page: Page }) {
   };
 
   const handleReady = useCallback(
-    (normalized: string) => bodySaver.setBaseline(normalized),
-    [bodySaver],
+    (normalized: string) => {
+      if (draft === undefined || normalized === page.content) {
+        if (draft !== undefined) forgetDraft(page.id);
+        bodySaver.setBaseline(normalized);
+        return;
+      }
+      // Hay un borrador sin guardar: la referencia es lo que hay en la base, para que se escriba.
+      bodySaver.setBaseline(page.content);
+      bodySaver.schedule();
+    },
+    [bodySaver, draft, page.content, page.id],
   );
 
   const ancestors = getAncestors(store.pages, page.id);
@@ -160,7 +183,12 @@ export default function PageDocument({ page }: { page: Page }) {
       <PageHeader
         title={pageTitle(page)}
         titleContent={<PageBreadcrumbs ancestors={ancestors} current={page} />}
-        primaryAction={{ label: "Nueva página", onClick: () => void commands.createRoot() }}
+        primaryAction={
+          isCollection
+            ? // En una colección, Cmd/Ctrl+N lleva al campo "Nuevo elemento…" en vez de crear una página suelta.
+              { label: "Nuevo elemento", onClick: () => addRowRef.current?.focus() }
+            : { label: "Nueva página", onClick: () => void commands.createRoot() }
+        }
         actions={
           <>
             <span
@@ -214,6 +242,30 @@ export default function PageDocument({ page }: { page: Page }) {
                       },
                     ]
                   : []),
+                {
+                  label: "Exportar como Markdown…",
+                  icon: FileDown,
+                  onSelect: async () => {
+                    try {
+                      // Se exporta lo que hay en pantalla, aunque aún no se haya guardado.
+                      await bodySaver.flush();
+                      await titleSaver.flush(titleValue.current);
+                      const markdown = editorRef.current?.getMarkdown() ?? null;
+                      const current: Page = {
+                        ...page,
+                        title: titleValue.current,
+                        ...(markdown !== null
+                          ? { content: markdown, contentFormat: "markdown" as const }
+                          : {}),
+                      };
+                      const saved = await exportPageMarkdown(current, store.pages);
+                      if (saved !== null) notify.success("Página exportada como Markdown.");
+                    } catch (error) {
+                      console.error("No se pudo exportar la página", error);
+                      notify.error("No se pudo exportar la página.");
+                    }
+                  },
+                },
                 {
                   label: "Mover a…",
                   icon: FolderInput,
@@ -312,7 +364,7 @@ export default function PageDocument({ page }: { page: Page }) {
           </div>
         )}
 
-        {isCollection && <CollectionTable collection={page} />}
+        {isCollection && <CollectionTable collection={page} addInputRef={addRowRef} />}
 
         <PageTasks pageId={page.id} />
       </article>

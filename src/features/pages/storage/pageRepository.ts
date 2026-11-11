@@ -234,6 +234,17 @@ export async function movePage(id: string, newParentId: string | null): Promise<
   if (newParentId !== null && (await isInSubtree(id, newParentId))) {
     throw new Error("Una página no puede moverse dentro de sí misma.");
   }
+  if (newParentId !== null) {
+    // Dentro de una colección solo viven filas: una página normal no puede entrar.
+    const [moving, target] = await Promise.all([getPage(id), getPage(newParentId)]);
+    if (target?.kind === "collection") {
+      const parent = moving?.parentId ? await getPage(moving.parentId) : null;
+      const isRow = parent?.kind === "collection" && parent.deletedAt === null;
+      if (!moving || moving.kind === "collection" || !isRow) {
+        throw new Error("Una página normal no puede moverse dentro de una colección.");
+      }
+    }
+  }
   await runBatch([
     {
       // Los parámetros aparecen en orden ($1, $2): el plugin de Tauri los enlaza por posición.

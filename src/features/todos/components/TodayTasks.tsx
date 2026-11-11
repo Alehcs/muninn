@@ -1,6 +1,6 @@
 import { useNavigation } from "@/app/NavigationContext";
 import { useTodoList } from "../hooks/useTodoList";
-import { toDateKey } from "../utils/todoDates";
+import { useToday } from "@/lib/useToday";
 import { filterToday } from "../utils/todoViews";
 import TodoList from "./TodoList";
 import TodoQuickAdd from "./TodoQuickAdd";
@@ -15,7 +15,7 @@ const MAX_VISIBLE = 6;
 export default function TodayTasks() {
   const todo = useTodoList();
   const { navigate } = useNavigation();
-  const today = toDateKey(new Date());
+  const today = useToday();
 
   const due = filterToday(todo.items, today);
   const visible = due.slice(0, MAX_VISIBLE);

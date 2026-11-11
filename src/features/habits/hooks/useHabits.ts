@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { notify } from "@/lib/notify";
 import { buildHabit } from "../utils/habitFactory";
-import { getLocalDate } from "../utils/date";
+import { useToday } from "@/lib/useToday";
 import { getDailyProgress, getHabitProgress } from "../utils/progress";
 import type { DailyProgress } from "../utils/progress";
 import * as habitRepo from "../storage/habitRepository";
@@ -53,7 +53,8 @@ export function useHabits(): HabitsStore {
   const [status, setStatus] = useState<HabitsStatus>("loading");
   const [habits, setHabits] = useState<Habit[]>([]);
   const [values, setValues] = useState<Record<string, number>>({});
-  const [currentDate, setCurrentDate] = useState(() => getLocalDate());
+  // Cambia sola al pasar la medianoche (mecanismo compartido con tareas y panel "Hoy").
+  const currentDate = useToday();
 
   const loadedRef = useRef(false);
 
@@ -85,17 +86,6 @@ export function useHabits(): HabitsStore {
     },
     [currentDate],
   );
-
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setCurrentDate((previous) => {
-        const next = getLocalDate();
-        return next === previous ? previous : next;
-      });
-    }, 60_000);
-
-    return () => window.clearInterval(id);
-  }, []);
 
   useEffect(() => {
     let cancelled = false;

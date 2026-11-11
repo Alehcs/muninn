@@ -94,6 +94,23 @@ export function getSubtreeIds(pages: readonly Page[], id: string): Set<string> {
   return ids;
 }
 
+/**
+ * ¿Se puede mover `page` bajo `newParentId` (`null` = raíz)? Una página normal
+ * (o una colección) no puede entrar en una colección: ahí solo viven filas.
+ * Una fila sí puede cambiar de colección o salir de ella (la interfaz lo
+ * confirma antes, porque sus valores dejan de verse como columnas).
+ */
+export function canMoveInto(
+  pages: readonly Page[],
+  page: Page,
+  newParentId: string | null,
+): boolean {
+  if (newParentId === null) return true;
+  const target = pages.find((candidate) => candidate.id === newParentId);
+  if (!target || target.kind !== "collection") return true;
+  return page.kind !== "collection" && getCollectionOf(pages, page) !== undefined;
+}
+
 /** Destinos válidos para "Mover a…": activas, sin la página ni sus descendientes. */
 export interface MoveTarget {
   id: string | null;
@@ -108,10 +125,16 @@ export function getMoveTargets(
   titleOf: (page: Page) => string,
 ): MoveTarget[] {
   const excluded = getSubtreeIds(pages, pageId);
+  const moving = pages.find((candidate) => candidate.id === pageId);
   const targets: MoveTarget[] = [{ id: null, label: "Raíz (sin página madre)", depth: 0 }];
   const walk = (nodes: PageNode[], depth: number) => {
     for (const node of nodes) {
       if (excluded.has(node.page.id)) continue;
+      // Una página normal no puede ir dentro de una colección.
+      if (moving && !canMoveInto(pages, moving, node.page.id)) {
+        walk(node.children, depth);
+        continue;
+      }
       targets.push({ id: node.page.id, label: titleOf(node.page), depth });
       walk(node.children, depth + 1);
     }

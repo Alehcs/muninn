@@ -220,3 +220,42 @@ describe("pageRepository y tareas enlazadas", () => {
     expect(await pageIdOf("t1")).toBe(page.id);
   });
 });
+
+describe("movePage y colecciones", () => {
+  let test: TestDatabase;
+
+  beforeEach(async () => {
+    test = await createTestDatabase();
+    await runMigrations(test.db);
+    setDatabaseForTesting(test.db);
+  });
+
+  afterEach(() => setDatabaseForTesting(null));
+
+  it("rechaza mover una página normal dentro de una colección", async () => {
+    const collection = await repo.createCollection({ parentId: null });
+    const page = await repo.createPage({ title: "suelta" });
+    await expect(repo.movePage(page.id, collection.id)).rejects.toThrow(/colección/);
+    expect((await repo.getPage(page.id))?.parentId).toBeNull();
+  });
+
+  it("rechaza meter una colección dentro de otra", async () => {
+    const a = await repo.createCollection({ parentId: null });
+    const b = await repo.createCollection({ parentId: null });
+    await expect(repo.movePage(b.id, a.id)).rejects.toThrow(/colección/);
+  });
+
+  it("permite que una fila cambie de colección o salga a la raíz, conservando sus valores", async () => {
+    const a = await repo.createCollection({ parentId: null });
+    const b = await repo.createCollection({ parentId: null });
+    const row = await repo.createRow(a.id, "fila", { col: "x" });
+
+    await repo.movePage(row.id, b.id);
+    expect((await repo.getPage(row.id))?.parentId).toBe(b.id);
+
+    await repo.movePage(row.id, null);
+    const stored = await repo.getPage(row.id);
+    expect(stored?.parentId).toBeNull();
+    expect(stored?.properties).toEqual({ values: { col: "x" } });
+  });
+});

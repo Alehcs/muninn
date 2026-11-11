@@ -70,6 +70,8 @@ export const VIEW_LABELS: Record<View, string> = {
 export interface Location {
   view: View;
   pageId?: string;
+  /** En "roadmap": la lista (roadmap) que debe quedar seleccionada. */
+  roadmapId?: string;
 }
 
 /** Lo que acepta `navigate`: una vista suelta o una ubicación completa. */
@@ -80,5 +82,9 @@ export function toLocation(target: NavigateTarget): Location {
 }
 
 export function sameLocation(a: Location, b: Location): boolean {
-  return a.view === b.view && (a.pageId ?? null) === (b.pageId ?? null);
+  return (
+    a.view === b.view &&
+    (a.pageId ?? null) === (b.pageId ?? null) &&
+    (a.roadmapId ?? null) === (b.roadmapId ?? null)
+  );
 }

@@ -1,10 +1,12 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Button from "@/components/Button";
 import { Page } from "@/components/PageHeader";
 import Tabs, { TabPanel, type TabItem } from "@/components/Tabs";
+import { consumeTaskFocus } from "@/lib/commandPalette";
 import { usePrimaryAction } from "@/lib/usePrimaryAction";
 import { useTodoList } from "../hooks/useTodoList";
-import { groupByDay, toDateKey } from "../utils/todoDates";
+import { useToday } from "@/lib/useToday";
+import { groupByDay } from "../utils/todoDates";
 import { filterForTab, tabCounts, type TodoTab } from "../utils/todoViews";
 import TodoList from "./TodoList";
 import TodoQuickAdd from "./TodoQuickAdd";
@@ -22,10 +24,16 @@ export default function TodoListView() {
   const todo = useTodoList();
   const [tab, setTab] = useState<TodoTab>("pending");
   const quickAddRef = useRef<HTMLInputElement>(null);
-  const today = toDateKey(new Date());
+  const today = useToday();
 
   // Cmd/Ctrl+N: foco en el campo de alta rápida.
   usePrimaryAction(() => quickAddRef.current?.focus());
+
+  // "Nueva tarea" desde la paleta de búsqueda: al cargar, foco en el alta rápida.
+  const ready = todo.status === "ready";
+  useEffect(() => {
+    if (ready && consumeTaskFocus()) quickAddRef.current?.focus();
+  }, [ready]);
 
   if (todo.status === "loading") {
     return (

@@ -4,6 +4,7 @@ import {
   ListChecks,
   Repeat,
   Plus,
+  Search,
   Settings,
   SquareCheckBig,
   StickyNote,
@@ -16,9 +17,14 @@ import { useNavigation } from "@/app/NavigationContext";
 import { NAV_GROUPS, SETTINGS_ITEM } from "@/app/navigation";
 import type { NavItem, View } from "@/app/navigation";
 import RowMenu from "@/components/RowMenu";
+import { openPalette } from "@/lib/commandPalette";
 import PageTree from "@/features/pages/components/PageTree";
 import { usePageCommands } from "@/features/pages/hooks/usePageCommands";
 import { cn } from "@/utils/cn";
+
+/** Atajo de la búsqueda según la plataforma (⌘K en Mac, Ctrl K en el resto). */
+const SHORTCUT_LABEL =
+  typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘K" : "Ctrl K";
 
 const ICONS: Record<View, LucideIcon> = {
   today: CalendarCheck,
@@ -117,6 +123,22 @@ export default function Sidebar() {
             DEV
           </span>
         )}
+      </div>
+
+      <div className="px-3 pb-1 pt-1">
+        <button
+          type="button"
+          onClick={openPalette}
+          aria-label="Buscar"
+          aria-keyshortcuts="Control+K Meta+K"
+          className="flex h-8 w-full items-center gap-2.5 rounded-md border border-border px-2.5 text-left text-sm text-text-muted transition-colors hover:bg-surface-hover hover:text-text"
+        >
+          <Search size={16} strokeWidth={1.5} aria-hidden="true" className="shrink-0" />
+          <span className="flex-1 truncate">Buscar</span>
+          <kbd className="shrink-0 rounded border border-border px-1 font-sans text-[11px] leading-4">
+            {SHORTCUT_LABEL}
+          </kbd>
+        </button>
       </div>
 
       <nav

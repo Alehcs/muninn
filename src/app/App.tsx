@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import MainLayout from "@/layouts/MainLayout";
 import TodayView from "@/pages/TodayView";
@@ -28,6 +28,16 @@ export default function App() {
   const [location, setLocation] = useState<Location>({ view: "today" });
   const { view } = location;
   const store = useHabits();
+
+  // Solo desarrollo: con ?selftest=1 ejecuta la autoprueba de datos una vez que la app ha cargado
+  // (así los datos de ejemplo ya están sembrados). El `import()` queda fuera del bundle de producción.
+  useEffect(() => {
+    if (import.meta.env.DEV && store.status === "ready") {
+      if (new URLSearchParams(window.location.search).get("selftest") === "1") {
+        void import("@/dev/selftest/start").then((module) => module.startSelfTest());
+      }
+    }
+  }, [store.status]);
 
   return (
     <ThemeProvider>

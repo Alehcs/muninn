@@ -11,13 +11,15 @@ export interface KeyLike {
 
 export type ShortcutAction =
   | { type: "navigate"; view: View }
-  | { type: "primary" };
+  | { type: "primary" }
+  | { type: "search" };
 
 /**
  * Traduce una pulsación en una acción global, o null si no es un atajo.
  * - Cmd/Ctrl+1…6: entradas de la barra lateral, en orden.
  * - Cmd/Ctrl+,: Configuración.
  * - Cmd/Ctrl+N: acción principal de la vista actual.
+ * - Cmd/Ctrl+K: búsqueda global.
  */
 export function resolveShortcut(event: KeyLike): ShortcutAction | null {
   if (!(event.metaKey || event.ctrlKey) || event.altKey) return null;
@@ -31,6 +33,9 @@ export function resolveShortcut(event: KeyLike): ShortcutAction | null {
   }
   if (event.key.toLowerCase() === "n" && !event.shiftKey) {
     return { type: "primary" };
+  }
+  if (event.key.toLowerCase() === "k" && !event.shiftKey) {
+    return { type: "search" };
   }
   return null;
 }

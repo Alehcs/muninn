@@ -6,6 +6,8 @@ import TodayTasks from "@/features/todos/components/TodayTasks";
 import HabitTimerPanel from "@/features/timer/components/HabitTimerPanel";
 import { useHabitTimerContext } from "@/features/timer/HabitTimerContext";
 import { Page } from "@/components/PageHeader";
+import { useToday } from "@/lib/useToday";
+import { parseDateKey } from "@/features/todos/utils/todoDates";
 
 interface TodayViewProps {
   store: HabitsStore;
@@ -26,7 +28,8 @@ export default function TodayView({ store }: TodayViewProps) {
     reset,
   } = store;
   const timer = useHabitTimerContext();
-  const today = new Date().toLocaleDateString("es-ES", {
+  const todayKey = useToday();
+  const today = (parseDateKey(todayKey) ?? new Date()).toLocaleDateString("es-ES", {
     weekday: "long",
     day: "numeric",
     month: "long",

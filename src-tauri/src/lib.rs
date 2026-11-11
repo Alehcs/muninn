@@ -1,3 +1,4 @@
+mod export;
 mod storage;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -13,6 +14,7 @@ pub fn run() {
             storage::list_snapshots,
             storage::prune_snapshots,
             storage::reveal_backups_dir,
+            export::export_files,
         ])
         .run(tauri::generate_context!())
         .expect("error al iniciar la aplicación Tauri");

@@ -1,8 +1,8 @@
 import { ChevronRight } from "lucide-react";
 import { usePersistentState } from "@/lib/usePersistentState";
+import { useToday } from "@/lib/useToday";
 import { cn } from "@/utils/cn";
 import { useTodoList } from "../hooks/useTodoList";
-import { toDateKey } from "../utils/todoDates";
 import { filterCompleted, filterPending } from "../utils/todoViews";
 import TodoList from "./TodoList";
 import TodoQuickAdd from "./TodoQuickAdd";
@@ -18,7 +18,7 @@ const isBoolean = (value: unknown): value is boolean => typeof value === "boolea
 export default function PageTasks({ pageId }: { pageId: string }) {
   const todo = useTodoList();
   const [open, setOpen] = usePersistentState(OPEN_KEY, true, isBoolean);
-  const today = toDateKey(new Date());
+  const today = useToday();
 
   if (todo.status !== "ready") return null;
 

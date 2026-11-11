@@ -8,9 +8,10 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
+import { confirm } from "@/lib/confirm";
 import { notify } from "@/lib/notify";
 import * as pageRepo from "../storage/pageRepository";
-import type { Page } from "../types";
+import { pageTitle, type Page } from "../types";
 import MovePageDialog from "../components/MovePageDialog";
 import NewCollectionDialog from "../components/NewCollectionDialog";
 import {
@@ -21,7 +22,8 @@ import {
   type ColumnType,
   type ViewSpec,
 } from "../utils/collection";
-import { buildTree, getTrashRoots, type PageNode } from "../utils/pageTree";
+import { forgetDraft, rememberDraft } from "../utils/pageDrafts";
+import { buildTree, getCollectionOf, getTrashRoots, type PageNode } from "../utils/pageTree";
 
 export type PagesStatus = "loading" | "ready" | "error";
 
@@ -280,7 +282,11 @@ export function PagesProvider({ children }: { children: ReactNode }) {
       },
 
       saveContent: async (id, markdown) => {
+        // El borrador queda anotado hasta que se confirma la escritura: si falla y la
+        // página se reabre antes del reintento, se recupera en lugar de la versión vieja.
+        rememberDraft(id, markdown);
         const saved = await pageRepo.savePageContent(id, markdown);
+        forgetDraft(id, markdown);
         patch(id, {
           content: markdown,
           contentFormat: saved.contentFormat,
@@ -333,6 +339,7 @@ export function PagesProvider({ children }: { children: ReactNode }) {
       deletePermanently: (id) =>
         attempt("No se pudo eliminar la página.", async () => {
           await pageRepo.deletePagePermanently(id);
+          forgetDraft(id);
           await reload();
         }),
     };
@@ -372,8 +379,25 @@ export function PagesProvider({ children }: { children: ReactNode }) {
           pages={store.pages}
           tree={store.tree}
           onCancel={() => setMoving(null)}
-          onSelect={(parentId) => {
+          onSelect={async (parentId) => {
             setMoving(null);
+            // Sacar una fila de su colección (o pasarla a otra) deja sus valores sin columna: se avisa.
+            const from = getCollectionOf(store.pages, movingPage);
+            if (from && parentId !== from.id) {
+              const target = parentId === null ? undefined : store.getPage(parentId);
+              const intoOther = target?.kind === "collection";
+              const accepted = await confirm({
+                title: "Mover fuera de la colección",
+                message:
+                  `«${pageTitle(movingPage)}» dejará de ser un elemento de «${pageTitle(from)}»` +
+                  (intoOther
+                    ? ` y pasará a la colección «${pageTitle(target)}», cuyas columnas son otras.`
+                    : " y pasará a ser una página normal.") +
+                  " Sus valores no se borran, pero dejarán de verse como propiedades; vuelven a verse si regresa a su colección.",
+                confirmLabel: "Mover",
+              });
+              if (!accepted) return;
+            }
             void store.movePage(movingPage.id, parentId);
           }}
         />

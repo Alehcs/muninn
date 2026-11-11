@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import Sidebar from "@/components/Sidebar";
 import Toaster from "@/components/Toaster";
 import ConfirmDialogHost from "@/components/ConfirmDialog";
+import CommandPalette from "@/features/search/CommandPalette";
+import { isPaletteOpen, togglePalette } from "@/lib/commandPalette";
 import { hasOpenConfirm } from "@/lib/confirm";
 import { confirmDiscardChanges } from "@/lib/unsavedChanges";
 import { resolveShortcut, runPrimaryAction } from "@/lib/shortcuts";
@@ -69,9 +71,13 @@ export default function MainLayout({
       const action = resolveShortcut(event);
       if (action === null) return;
 
+      // Con la paleta abierta solo Cmd/Ctrl+K (cerrarla) actúa; el resto es suyo.
+      if (isPaletteOpen() && action.type !== "search") return;
+
       // Todos llevan Cmd/Ctrl, así que funcionan también al escribir en un campo.
       event.preventDefault();
       if (action.type === "navigate") void requestNavigate(action.view);
+      else if (action.type === "search") togglePalette();
       else runPrimaryAction();
     };
 
@@ -87,6 +93,7 @@ export default function MainLayout({
           {children}
         </main>
         <Toaster />
+        <CommandPalette />
         <ConfirmDialogHost />
       </div>
     </NavigationContext.Provider>

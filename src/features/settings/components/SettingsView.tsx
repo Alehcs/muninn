@@ -13,6 +13,11 @@ import {
 } from "@/lib/db/snapshots";
 import { notify } from "@/lib/notify";
 import {
+  exportAllMarkdown,
+  revealExportFolder,
+  type ExportAllResult,
+} from "@/features/export/exportService";
+import {
   exportBackup,
   importBackup,
   pickBackupFile,
@@ -170,6 +175,82 @@ function AutomaticCopies() {
   );
 }
 
+/** "Exportar a Markdown": carpeta de archivos legibles fuera de la app. */
+function MarkdownExport() {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<ExportAllResult | null>(null);
+
+  const handleExport = async () => {
+    setBusy(true);
+    setResult(null);
+    try {
+      const outcome = await exportAllMarkdown();
+      if (outcome.kind === "cancelled") return;
+      setResult(outcome);
+      notify.success(
+        outcome.kind === "folder"
+          ? `Exportación lista: ${plural(outcome.count, "archivo", "archivos")}.`
+          : "Exportación descargada.",
+      );
+    } catch (error) {
+      console.error("No se pudo exportar a Markdown", error);
+      notify.error(
+        `No se pudo exportar a Markdown. ${error instanceof Error ? error.message : String(error)}`,
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleReveal = async (path: string) => {
+    try {
+      await revealExportFolder(path);
+    } catch (error) {
+      console.error("No se pudo abrir la carpeta exportada", error);
+      notify.error("No se pudo abrir la carpeta.");
+    }
+  };
+
+  return (
+    <div className="mt-4 rounded-xl border border-border bg-surface p-5">
+      <h3 className="font-medium">Exportar a Markdown</h3>
+      <p className="mt-1 text-sm text-text-muted">
+        Crea archivos <code>.md</code> legibles con tus páginas (las subpáginas
+        en carpetas y las colecciones con su tabla), tareas, listas y la
+        definición de tus hábitos. La papelera no se exporta. Es una vía de
+        salida de tus datos; para restaurarlos usa el backup JSON.
+      </p>
+      <p className="mt-2 text-sm text-text-muted">
+        {isTauri()
+          ? "Eliges una carpeta y dentro se crea una subcarpeta nueva con la fecha y la hora; nunca se sobrescribe nada."
+          : "En el navegador no hay carpetas: se descarga un único archivo .md con todo."}
+      </p>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <Button onClick={handleExport} disabled={busy}>
+          Exportar todo…
+        </Button>
+        {result?.kind === "folder" && (
+          <Button variant="ghost" onClick={() => void handleReveal(result.path)}>
+            Abrir carpeta
+          </Button>
+        )}
+      </div>
+
+      {result?.kind === "folder" && (
+        <p className="mt-4 break-all rounded-lg bg-surface-hover px-3 py-2 text-sm text-text-muted">
+          {plural(result.count, "archivo creado", "archivos creados")} en {result.path}
+        </p>
+      )}
+      {result?.kind === "download" && (
+        <p className="mt-4 rounded-lg bg-surface-hover px-3 py-2 text-sm text-text-muted">
+          Descargado {result.fileName} ({plural(result.count, "archivo", "archivos")} dentro).
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function SettingsView({ store }: SettingsViewProps) {
   const [notice, setNotice] = useState<Notice>(null);
   const [pendingBackup, setPendingBackup] = useState<BackupFile | null>(null);
@@ -275,6 +356,8 @@ export default function SettingsView({ store }: SettingsViewProps) {
           </p>
         )}
       </div>
+
+      <MarkdownExport />
 
       <AutomaticCopies key={copiesKey} />
 

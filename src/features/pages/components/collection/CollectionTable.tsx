@@ -1,5 +1,5 @@
 import { memo, useCallback, useMemo, useRef, useState } from "react";
-import type { KeyboardEvent, ReactNode } from "react";
+import type { KeyboardEvent, ReactNode, RefObject } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -172,6 +172,8 @@ function filterKey(columnId: string, value: string): string {
 
 interface CollectionTableProps {
   collection: Page;
+  /** Campo "Nuevo elemento…": lo usa la cabecera de la página para el atajo Cmd/Ctrl+N. */
+  addInputRef?: RefObject<HTMLInputElement | null>;
 }
 
 /**
@@ -179,13 +181,14 @@ interface CollectionTableProps {
  * guardada en la colección), buscador por título, celdas editables en el sitio,
  * arrastre para el orden manual y alta rápida al pie.
  */
-export default function CollectionTable({ collection }: CollectionTableProps) {
+export default function CollectionTable({ collection, addInputRef }: CollectionTableProps) {
   const store = usePages();
   const commands = usePageCommands();
   const { navigate } = useNavigation();
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState("");
-  const addRef = useRef<HTMLInputElement>(null);
+  const ownAddRef = useRef<HTMLInputElement>(null);
+  const addRef = addInputRef ?? ownAddRef;
   const creating = useRef(false);
 
   const columns = useMemo(() => readColumns(collection.properties), [collection.properties]);

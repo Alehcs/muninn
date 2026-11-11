@@ -1,61 +1,80 @@
 # Aurhabits
 
-Aurhabits es una app desktop local para registrar habitos diarios, revisar progreso por fecha, ver estadisticas/rachas, usar calendario mensual, manejar timers para habitos de duracion y exportar/importar backups JSON.
+Aurhabits es una app de escritorio personal, local y sin conexión, para organizar el día. Todo vive en una base SQLite en tu equipo; no hay backend ni sincronización remota.
 
-La app esta pensada como una herramienta personal y funciona 100% local/offline. No usa backend externo ni sincronizacion remota.
+## Qué incluye
+
+- **Hoy**: hábitos del día, tareas de hoy y páginas fijadas o recientes.
+- **Páginas**: documentos con editor Markdown, anidables (subpáginas), con iconos, categorías, papelera y guardado automático.
+- **Colecciones**: páginas especiales con forma de tabla; cada fila es una subpágina con columnas propias (texto, número, selección, casilla, fecha, enlace), orden, filtro y plantilla de libros.
+- **Tareas**: con fecha, prioridad, página enlazada, vistas Pendientes / Hoy / Próximas / Completadas y orden manual.
+- **Listas**: listas con secciones e items (tipo, enlace, descripción, notas) que se reordenan arrastrando.
+- **Hábitos**: registro diario, calendario, historial y estadísticas con rachas; timers para hábitos de duración.
+- **Enfoque**: temporizador Pomodoro.
+- **Búsqueda global** (`Cmd/Ctrl+K`): páginas, tareas, items de listas y hábitos, sin distinguir mayúsculas ni tildes.
 
 ## Stack
 
-- Tauri 2
-- React 19
-- TypeScript
-- Tailwind CSS 4
-- SQLite local con `@tauri-apps/plugin-sql`
+Tauri 2 (Rust) · React 19 · TypeScript · Tailwind CSS 4 · SQLite (`@tauri-apps/plugin-sql`).
+
+## Atajos de teclado
+
+| Atajo | Acción |
+| --- | --- |
+| `Cmd/Ctrl+K` | Búsqueda global y acciones rápidas |
+| `Cmd/Ctrl+1…6` | Hoy, Páginas, Tareas, Listas, Hábitos, Enfoque |
+| `Cmd/Ctrl+,` | Configuración |
+| `Cmd/Ctrl+N` | Acción principal de la vista (nueva página, tarea…; en una colección, foco en «Nuevo elemento…») |
+
+## Datos, copias y backups
+
+- La base está en el directorio de datos de la app (`com.aurhabits.desktop`):
+  - macOS: `~/Library/Application Support/com.aurhabits.desktop/aurhabits.db`
+  - Windows: `%APPDATA%/com.aurhabits.desktop/aurhabits.db`
+  - Linux: `~/.local/share/com.aurhabits.desktop/aurhabits.db`
+- En desarrollo (`npm run tauri dev`) se usa `aurhabits-dev.db` en el mismo directorio, y la barra lateral muestra `DEV`. Tus datos reales no se tocan.
+- **Copias automáticas**: una al día, otra antes de migrar la base y otra antes de importar un backup, en la subcarpeta `backups/` (se podan solas). Configuración las lista y abre la carpeta. Para restaurar una, cierra la app y sustituye el archivo de la base por la copia.
+- **Backup JSON** (Configuración): exporta e importa todos los datos, incluidos los registros diarios de hábitos. Se pueden importar backups antiguos (v1 solo hábitos; v2 sin páginas).
+- **Exportar a Markdown** (Configuración › «Exportar todo…»): eliges una carpeta y dentro se crea `Aurhabits-export-<fecha-hora>/` (nunca sobrescribe) con `Páginas/` (subpáginas en carpetas; colecciones con `_Índice.md` y una tabla, más un `.md` por fila), `Tareas.md`, `Listas/` y `Habitos.md`. La papelera no se exporta. Cada página también tiene «Exportar como Markdown…» en su menú ⋯. Es una vía de salida legible; para restaurar usa el backup JSON.
 
 ## Desarrollo
 
 ```bash
 npm install
-npm run tauri dev
+npm run tauri dev     # app de escritorio con recarga en caliente
+npm run dev           # solo el frontend, en http://localhost:1420
 ```
 
-Para levantar solo el frontend en Vite:
+`npm run dev` funciona en un navegador normal con SQLite **en memoria** (sql.js): nada se guarda al recargar. Con `?seed=/ruta/archivo.db` se parte de una copia de ese archivo servido por Vite (solo lectura). El modo navegador no existe en producción.
+
+### Autoprueba de datos (solo desarrollo)
+
+Comprueba el camino real de datos (páginas, colecciones, tareas, listas, transacciones, papelera, backup, copias) y deja la base como estaba. Se ejecuta una vez al cargar si la URL lleva `?selftest=1`, muestra un panel con el resultado y lo guarda en `app_metadata` (clave `selftest_result`).
+
+- Navegador: abre `http://localhost:1420/?selftest=1` (los pasos de copia se omiten).
+- En la app de escritorio, usando la base de desarrollo (macOS/Linux):
 
 ```bash
-npm run dev
+npm run tauri dev -- --config '{"build":{"devUrl":"http://localhost:1420/?selftest=1"}}'
 ```
 
-## Build
+`--config` acepta un JSON que se fusiona con `tauri.conf.json`. El código de la autoprueba no entra en el build de producción.
+
+## Tests
 
 ```bash
-npm run build
-npm run tauri build
+npm test                 # Vitest (lógica, repositorios sobre sql.js, búsqueda, exportación)
+cd src-tauri && cargo test
 ```
 
-El build instalable queda en `src-tauri/target/release/bundle/`.
+## Build e instalación
 
-## Datos locales
-
-La base SQLite se abre como `sqlite:aurhabits.db` desde el plugin SQL de Tauri. En una instalacion normal, Tauri la ubica dentro del directorio de datos/configuracion de la app para el identificador `com.aurhabits.desktop`.
-
-Ubicaciones aproximadas:
-
-- macOS: `~/Library/Application Support/com.aurhabits.desktop/aurhabits.db`
-- Windows: `%APPDATA%/com.aurhabits.desktop/aurhabits.db`
-- Linux: `~/.local/share/com.aurhabits.desktop/aurhabits.db`
-
-En desarrollo (`npm run tauri dev`) la app usa un archivo aparte, `aurhabits-dev.db`, en ese mismo directorio. Asi los datos reales de la app instalada no se tocan mientras se programa; la barra lateral muestra la etiqueta `DEV` para distinguirlo.
-
-Los backups se exportan/importan manualmente como JSON desde la vista Configuracion. Incluyen todos los datos: habitos, registros, notas, tareas y roadmaps. Los backups antiguos (version 1, solo habitos y registros) se siguen pudiendo importar y no modifican el resto de los datos.
+```bash
+npm run build            # tsc + vite build
+npm run tauri build      # instalable en src-tauri/target/release/bundle/
+npm run instalar         # compila e instala en /Applications (macOS), con copia previa de la base
+```
 
 ## Iconos
 
-Los iconos actuales son placeholders y estan referenciados desde `src-tauri/tauri.conf.json`.
-
-Para reemplazarlos, actualiza los archivos en:
-
-- `src-tauri/icons/32x32.png`
-- `src-tauri/icons/128x128.png`
-- `src-tauri/icons/128x128@2x.png`
-
-Mantener esos nombres permite cambiar el icono sin tocar la configuracion de Tauri.
+Los iconos son placeholders referenciados desde `src-tauri/tauri.conf.json` (`src-tauri/icons/32x32.png`, `128x128.png`, `128x128@2x.png`). Mantener los nombres permite cambiarlos sin tocar la configuración.
