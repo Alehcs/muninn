@@ -120,7 +120,7 @@ function AutomaticCopies() {
     <div className="mt-4 rounded-xl border border-border bg-surface p-5">
       <h3 className="font-medium">Copias automáticas</h3>
       <p className="mt-1 text-sm text-text-muted">
-        Aurhabits guarda por su cuenta copias de tu base de datos (una al día,
+        Muninn guarda por su cuenta copias de tu base de datos (una al día,
         otra antes de actualizarla y otra antes de importar un backup) para que
         un error nunca te deje sin datos.
       </p>

@@ -70,6 +70,19 @@ describe("validateBackupFile", () => {
     expect(result.habits).toHaveLength(2);
   });
 
+  it("sigue aceptando backups antiguos con app \"Aurhabits\" y acepta \"Muninn\"", () => {
+    const old = backupV1();
+    expect(old.metadata.app).toBe("Aurhabits");
+    expect(validateBackupFile(old).habits).toHaveLength(2);
+    const nuevo = backupV1({ metadata: { backupVersion: 1, exportedAt: T, app: "Muninn" } });
+    expect(validateBackupFile(nuevo).habits).toHaveLength(2);
+  });
+
+  it("rechaza un backup de otra app", () => {
+    const bad = backupV1({ metadata: { backupVersion: 1, exportedAt: T, app: "Otra" } });
+    expect(() => validateBackupFile(bad)).toThrow("no corresponde a Muninn");
+  });
+
   it("acepta un backup v2 válido", () => {
     const result = validateBackupFile(backupV2());
     expect(result.metadata.backupVersion).toBe(2);

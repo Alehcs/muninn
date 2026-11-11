@@ -6,7 +6,7 @@ import { createSnapshotOrWarn } from "@/lib/db/snapshots";
 import { getLocalDate } from "@/features/habits/utils/date";
 
 function getDefaultBackupName(): string {
-  return `aurhabits-backup-${getLocalDate()}.json`;
+  return `muninn-backup-${getLocalDate()}.json`;
 }
 
 const JSON_FILTERS = [{ name: "JSON", extensions: ["json"] }];
@@ -20,7 +20,7 @@ export async function exportBackup(): Promise<string | null> {
         metadata: {
           backupVersion: BACKUP_VERSION,
           exportedAt: new Date().toISOString(),
-          app: "Aurhabits",
+          app: "Muninn",
         },
         ...data,
       };

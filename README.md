@@ -1,6 +1,8 @@
-# Aurhabits
+# Muninn
 
-Aurhabits es una app de escritorio personal, local y sin conexión, para organizar el día. Todo vive en una base SQLite en tu equipo; no hay backend ni sincronización remota.
+Muninn es una app de escritorio personal, local y sin conexión, para organizar el día. Todo vive en una base SQLite en tu equipo; no hay backend ni sincronización remota.
+
+El nombre viene de Muninn («Memoria»), uno de los dos cuervos de Odín. Antes se llamaba Aurhabits.
 
 ## Qué incluye
 
@@ -28,14 +30,15 @@ Tauri 2 (Rust) · React 19 · TypeScript · Tailwind CSS 4 · SQLite (`@tauri-ap
 
 ## Datos, copias y backups
 
-- La base está en el directorio de datos de la app (`com.aurhabits.desktop`):
+- La base está en el directorio de datos de la app (`com.aurhabits.desktop`; ver nota sobre el identificador más abajo):
   - macOS: `~/Library/Application Support/com.aurhabits.desktop/aurhabits.db`
   - Windows: `%APPDATA%/com.aurhabits.desktop/aurhabits.db`
   - Linux: `~/.local/share/com.aurhabits.desktop/aurhabits.db`
+- **Nota sobre el identificador**: la app se renombró de Aurhabits a Muninn, pero el `identifier` de `src-tauri/tauri.conf.json` sigue siendo `com.aurhabits.desktop` a propósito. Tauri deriva de él la carpeta de datos; cambiarlo haría que la app arrancara vacía y sin preferencias. Por la misma razón se mantienen los nombres `aurhabits.db` / `aurhabits-dev.db`, el patrón de las copias de `backups/` y las claves `aurhabits.*` de `localStorage`. Los backups JSON antiguos (`app: "Aurhabits"`) se siguen importando; los nuevos escriben `"Muninn"`.
 - En desarrollo (`npm run tauri dev`) se usa `aurhabits-dev.db` en el mismo directorio, y la barra lateral muestra `DEV`. Tus datos reales no se tocan.
 - **Copias automáticas**: una al día, otra antes de migrar la base y otra antes de importar un backup, en la subcarpeta `backups/` (se podan solas). Configuración las lista y abre la carpeta. Para restaurar una, cierra la app y sustituye el archivo de la base por la copia.
 - **Backup JSON** (Configuración): exporta e importa todos los datos, incluidos los registros diarios de hábitos. Se pueden importar backups antiguos (v1 solo hábitos; v2 sin páginas).
-- **Exportar a Markdown** (Configuración › «Exportar todo…»): eliges una carpeta y dentro se crea `Aurhabits-export-<fecha-hora>/` (nunca sobrescribe) con `Páginas/` (subpáginas en carpetas; colecciones con `_Índice.md` y una tabla, más un `.md` por fila), `Tareas.md`, `Listas/` y `Habitos.md`. La papelera no se exporta. Cada página también tiene «Exportar como Markdown…» en su menú ⋯. Es una vía de salida legible; para restaurar usa el backup JSON.
+- **Exportar a Markdown** (Configuración › «Exportar todo…»): eliges una carpeta y dentro se crea `Muninn-export-<fecha-hora>/` (nunca sobrescribe) con `Páginas/` (subpáginas en carpetas; colecciones con `_Índice.md` y una tabla, más un `.md` por fila), `Tareas.md`, `Listas/` y `Habitos.md`. La papelera no se exporta. Cada página también tiene «Exportar como Markdown…» en su menú ⋯. Es una vía de salida legible; para restaurar usa el backup JSON.
 
 ## Desarrollo
 

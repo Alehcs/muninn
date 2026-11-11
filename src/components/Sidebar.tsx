@@ -1,3 +1,4 @@
+import MuninnMark from "@/components/MuninnMark";
 import {
   CalendarCheck,
   FilePlus2,
@@ -110,11 +111,8 @@ export default function Sidebar() {
   return (
     <aside className="flex w-[220px] shrink-0 flex-col border-r border-border bg-surface">
       <div className="flex h-[52px] items-center gap-2 px-5">
-        <span
-          aria-hidden="true"
-          className="h-5 w-5 rounded-md bg-accent"
-        />
-        <span className="font-semibold">Aurhabits</span>
+        <MuninnMark className="h-6 w-6 shrink-0" />
+        <span className="font-semibold">Muninn</span>
         {import.meta.env.DEV && (
           <span
             className="rounded-full bg-surface-hover px-2 py-0.5 text-xs font-medium text-text-muted"

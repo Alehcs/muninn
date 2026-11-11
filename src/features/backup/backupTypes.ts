@@ -13,7 +13,7 @@ export const BACKUP_VERSION = 4;
 export interface BackupMetadata<Version extends 1 | 2 | 3 | 4 = 1 | 2 | 3 | 4> {
   backupVersion: Version;
   exportedAt: string;
-  app: "Aurhabits";
+  app: "Aurhabits" | "Muninn";
 }
 
 export interface BackupHabitRow {

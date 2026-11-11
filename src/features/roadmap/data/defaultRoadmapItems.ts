@@ -103,7 +103,7 @@ const seeds: DefaultRoadmapItemSeed[] = [
   { section: "AI/ML Foundations", title: "Computer vision basics", type: "Topic" },
   { section: "AI/ML Foundations", title: "Model evaluation", type: "Topic" },
   { section: "AI/ML Foundations", title: "ONNX/export basics", type: "Topic" },
-  { section: "Portfolio & Career", title: "Polish Aurhabits", type: "Project" },
+  { section: "Portfolio & Career", title: "Polish Muninn", type: "Project" },
   { section: "Portfolio & Career", title: "Polish Auralis/Coronium", type: "Project" },
   { section: "Portfolio & Career", title: "Polish ANOMALON/Auralis Discovery", type: "Project" },
   { section: "Portfolio & Career", title: "Update CV", type: "Career" },

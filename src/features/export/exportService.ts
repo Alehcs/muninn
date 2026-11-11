@@ -73,7 +73,7 @@ export async function exportAllMarkdown(): Promise<ExportAllResult> {
   }
 
   const files = buildMarkdownExport(await loadExportData());
-  const fileName = `aurhabits-export-${getLocalDate()}.md`;
+  const fileName = `muninn-export-${getLocalDate()}.md`;
   const saved = await saveTextFile(
     { defaultName: fileName, filters: MARKDOWN_FILTERS },
     () => concatenateExport(files),

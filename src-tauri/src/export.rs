@@ -1,5 +1,5 @@
 //! Exportación a carpeta: escribe una lista de archivos de texto dentro de una
-//! subcarpeta NUEVA (`Aurhabits-export-<fecha-hora>/`) del directorio elegido.
+//! subcarpeta NUEVA (`Muninn-export-<fecha-hora>/`) del directorio elegido.
 //!
 //! Nunca sobrescribe ni borra nada que ya existiera: la subcarpeta se crea con
 //! `create_dir` (falla si existe, y entonces se prueba con otro sufijo), cada
@@ -15,7 +15,7 @@ use std::path::Path;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 
-const EXPORT_PREFIX: &str = "Aurhabits-export-";
+const EXPORT_PREFIX: &str = "Muninn-export-";
 const TIMESTAMP_FORMAT: &str = "%Y-%m-%d-%H%M%S";
 /// Caracteres que no se admiten en ningún componente (Windows los prohíbe).
 const FORBIDDEN_CHARS: [char; 8] = ['\\', ':', '*', '?', '"', '<', '>', '|'];
@@ -218,8 +218,8 @@ mod tests {
 
         assert_eq!(result.count, 3);
         let root = Path::new(&result.path);
-        assert_eq!(root, tmp.path().join("Aurhabits-export-2026-11-10-120000"));
-        assert_eq!(entries(tmp.path()), vec!["Aurhabits-export-2026-11-10-120000"]);
+        assert_eq!(root, tmp.path().join("Muninn-export-2026-11-10-120000"));
+        assert_eq!(entries(tmp.path()), vec!["Muninn-export-2026-11-10-120000"]);
         assert_eq!(fs::read_to_string(root.join("Tareas.md")).unwrap(), "# Tareas\n");
         assert_eq!(
             fs::read_to_string(root.join("Páginas/Madre/Hija.md")).unwrap(),
@@ -304,7 +304,7 @@ mod tests {
         let second = write_export(tmp.path(), "mismo", &[file("a.md", "segundo")]).unwrap();
 
         assert_ne!(first.path, second.path);
-        assert!(second.path.ends_with("Aurhabits-export-mismo-2"));
+        assert!(second.path.ends_with("Muninn-export-mismo-2"));
         assert_eq!(
             fs::read_to_string(Path::new(&first.path).join("a.md")).unwrap(),
             "primero"

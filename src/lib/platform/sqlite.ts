@@ -23,6 +23,6 @@ export async function openDatabase(url: string): Promise<SqlDatabase> {
   }
 
   throw new Error(
-    "Aurhabits solo puede abrir su base de datos dentro de la aplicación de escritorio.",
+    "Muninn solo puede abrir su base de datos dentro de la aplicación de escritorio.",
   );
 }

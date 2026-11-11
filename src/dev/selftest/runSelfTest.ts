@@ -400,7 +400,7 @@ export async function runSelfTest(
   await step("Backup en memoria: generar y validar", async () => {
     const data = await readBackupData();
     const backup: BackupFile = {
-      metadata: { backupVersion: BACKUP_VERSION, exportedAt: new Date().toISOString(), app: "Aurhabits" },
+      metadata: { backupVersion: BACKUP_VERSION, exportedAt: new Date().toISOString(), app: "Muninn" },
       ...data,
     };
     // Pasa por JSON, como al guardar y volver a abrir el archivo.

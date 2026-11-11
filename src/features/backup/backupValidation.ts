@@ -327,8 +327,8 @@ export function validateBackupFile(value: unknown): BackupFile {
   if (version !== 1 && version !== 2 && version !== 3 && version !== 4) {
     throw new Error("La versión del backup no es compatible.");
   }
-  if (value.metadata.app !== "Aurhabits") {
-    throw new Error("El backup no corresponde a Aurhabits.");
+  if (value.metadata.app !== "Aurhabits" && value.metadata.app !== "Muninn") {
+    throw new Error("El backup no corresponde a Muninn.");
   }
   if (!isString(value.metadata.exportedAt)) {
     throw new Error("La metadata no tiene fecha de exportación válida.");
@@ -372,7 +372,7 @@ export function validateBackupFile(value: unknown): BackupFile {
 
   if (version === 1) {
     return {
-      metadata: { backupVersion: 1, exportedAt, app: "Aurhabits" },
+      metadata: { backupVersion: 1, exportedAt, app: "Muninn" },
       habits,
       habit_logs,
     };
@@ -413,7 +413,7 @@ export function validateBackupFile(value: unknown): BackupFile {
 
   if (version === 2) {
     return {
-      metadata: { backupVersion: 2, exportedAt, app: "Aurhabits" },
+      metadata: { backupVersion: 2, exportedAt, app: "Muninn" },
       ...workspace,
     };
   }
@@ -432,14 +432,14 @@ export function validateBackupFile(value: unknown): BackupFile {
 
   if (version === 3) {
     return {
-      metadata: { backupVersion: 3, exportedAt, app: "Aurhabits" },
+      metadata: { backupVersion: 3, exportedAt, app: "Muninn" },
       ...workspace,
       pages,
     };
   }
 
   return {
-    metadata: { backupVersion: 4, exportedAt, app: "Aurhabits" },
+    metadata: { backupVersion: 4, exportedAt, app: "Muninn" },
     ...workspace,
     pages,
   };

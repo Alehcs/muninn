@@ -1,5 +1,5 @@
 #!/bin/bash
-# Compila Aurhabits e instala la nueva versión en /Applications.
+# Compila Muninn e instala la nueva versión en /Applications.
 #
 # Uso:  npm run instalar
 #
@@ -7,15 +7,22 @@
 #   ~/Library/Application Support/com.aurhabits.desktop/
 # y cada versión nueva abre la misma base. Aun así, antes de instalar se
 # guarda una copia de la base en la subcarpeta backups/.
-# La versión que estaba instalada se conserva como "Aurhabits-anterior.app"
+# La versión que estaba instalada se conserva como "Muninn-anterior.app"
 # (solo la última) por si hay que volver atrás.
+#
+# Si existe la app antigua /Applications/Aurhabits.app (el nombre anterior de
+# Muninn), se cierra y se mueve a /Applications/Aurhabits-anterior.app para que
+# no queden dos apps sobre los mismos datos.
 
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-APP_NAME="Aurhabits"
-PROCESS_NAME="aurhabits"
+APP_NAME="Muninn"
+PROCESS_NAME="muninn"
+OLD_APP="/Applications/Aurhabits.app"
+OLD_PREVIOUS="/Applications/Aurhabits-anterior.app"
+OLD_PROCESS="aurhabits"
 BUNDLE="src-tauri/target/release/bundle/macos/${APP_NAME}.app"
 DEST="/Applications/${APP_NAME}.app"
 PREVIOUS="/Applications/${APP_NAME}-anterior.app"
@@ -41,6 +48,19 @@ if pgrep -x "${PROCESS_NAME}" >/dev/null; then
   exit 1
 fi
 
+if [ -d "${OLD_APP}" ]; then
+  echo "    Cerrando la app antigua Aurhabits…"
+  osascript -e 'tell application "Aurhabits" to quit' >/dev/null 2>&1 || true
+  for _ in $(seq 1 20); do
+    pgrep -x "${OLD_PROCESS}" >/dev/null || break
+    sleep 0.5
+  done
+  if pgrep -x "${OLD_PROCESS}" >/dev/null; then
+    echo "Aurhabits sigue abierta. Ciérrala y vuelve a ejecutar. No se instaló nada." >&2
+    exit 1
+  fi
+fi
+
 echo "3/4 Copiando la base de datos…"
 if [ -f "${DATABASE}" ]; then
   mkdir -p "${DATA_DIR}/backups"
@@ -64,6 +84,11 @@ else
 fi
 
 echo "4/4 Instalando en /Applications…"
+if [ -d "${OLD_APP}" ]; then
+  rm -rf "${OLD_PREVIOUS}"
+  mv "${OLD_APP}" "${OLD_PREVIOUS}"
+  echo "    Aurhabits.app antigua movida a ${OLD_PREVIOUS}"
+fi
 if [ -d "${DEST}" ]; then
   if [ -d "${PREVIOUS}" ]; then
     rm -rf "${PREVIOUS}"

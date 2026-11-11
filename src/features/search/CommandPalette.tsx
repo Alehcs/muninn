@@ -341,7 +341,7 @@ function Palette() {
             aria-controls={LISTBOX_ID}
             aria-activedescendant={activeRow ? `palette-${activeRow.key}` : undefined}
             aria-autocomplete="list"
-            aria-label="Buscar en Aurhabits"
+            aria-label="Buscar en Muninn"
             placeholder="Buscar páginas, tareas, listas y hábitos…"
             autoComplete="off"
             spellCheck={false}
